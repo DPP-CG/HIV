@@ -1,0 +1,109 @@
+;partners-initialization
+
+to initialize-exposures
+  set exposure-dist-min 
+  [30 68 63 59 52 39 36 24]
+
+  set exposure-dist-max 
+  [60 119 110 104 95 95 73 67]
+  
+  set exposure-dist -1
+end
+
+
+
+to calc-exposure-prob ;calculating yearly exposures
+  
+  ask links[ set partner-month random 11 ] ;update-link-per-year
+  
+  set exposure-dist -1
+  
+  ask people[
+    let exposure-prob random-float 100
+    ifelse exposure-prob < 8.77 [
+      set exposure-dist 0
+      ;set prop-acts-condom-protected 0.79
+    ]
+    [ifelse exposure-prob < 21.05[
+      set exposure-dist 1
+      ;set prop-acts-condom-protected 0.45
+      ]
+      [ifelse exposure-prob < 29.82 [
+        set exposure-dist 2
+        ;set prop-acts-condom-protected 0.28
+        ]
+        [ifelse exposure-prob < 47.36[
+          set exposure-dist 3
+          ;set prop-acts-condom-protected 0.26
+          ]
+          [ifelse exposure-prob < 56.13[
+            set exposure-dist 4
+            ;set prop-acts-condom-protected 0.21
+            ]
+            [ifelse exposure-prob < 64.90[
+              set exposure-dist 5
+              ;set prop-acts-condom-protected 0.21
+              ]
+              [ifelse exposure-prob < 82.44[
+                set exposure-dist 6
+                ;set prop-acts-condom-protected 0.1
+                ]
+                [
+                  set exposure-dist 7
+                  ;set prop-acts-condom-protected 0.06
+                ]
+              ]
+            ]
+          ]
+        ]
+      ]
+    ]
+  
+   set exposures-per-year (item exposure-dist exposure-dist-min) + random((item exposure-dist exposure-dist-min) - (item exposure-dist exposure-dist-max))
+  ]
+  
+end
+
+
+to assign-month-num-exposures [node-id]
+  
+  ;let exposures-per-year 0
+  let current-month ticks mod 12 ;0-11 is jan to dec
+  
+  set exposures-per-month exposures-per-year / 12
+  
+  let infected-node node-id
+  ;print who
+  
+  let neighbor-links link-set [my-links] of turtle infected-node
+  ask neighbor-links [
+    ifelse (partnership-type = 1 or partner-month = current-month) ;
+    [set active? true]
+    [set active? false]  ;deactivate all links every time this procedure is called by initializing to false
+  ]
+  
+  let num-monthly-active count neighbor-links with [active? = true]
+  let avg-monthly-exposures -1
+  
+  ifelse num-monthly-active = 0
+  [ set avg-monthly-exposures 0]
+  [  ifelse exposures-per-month / num-monthly-active < 1
+     [set avg-monthly-exposures 1]
+     [set avg-monthly-exposures round(exposures-per-month / num-monthly-active)] 
+  ]
+  
+  ;let avg-monthly-exposures round(exposures-per-month / num-monthly-active)
+  ;let temp-total exposures-per-month
+  
+  ask turtle infected-node[   ;can remove cuz already in procedure called ask infected-node?? idk if redundant or not
+      ask neighbor-links with [active? = true][ 
+        ask other-end[
+          set number-of-exposures avg-monthly-exposures
+        ;ifelse temp-total >= avg-monthly-exposures
+        ;[set number-exposures avg-monthly-exposures]
+        ;[set number-exposures temp-total]
+        ;set temp-total temp-total - avg-monthly-exposures
+      ]
+    ]
+  ]
+end           

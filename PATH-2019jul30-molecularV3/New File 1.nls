@@ -1,0 +1,31 @@
+to visualizeCluster
+  ask turtles
+  setxy 0 0
+  
+ifelse count people-2006 with [worthy-start? = true and cluster-size > 10] > 0
+  [
+   ask people-2006 with [worthy-start? = true and cluster-size > 10]
+  setxy random]
+  [file-write total-node-cluster]
+  
+end
+
+to layout agentset
+  ;; the number 3 here is arbitrary; more repetitions slows down the
+  ;; model, but too few gives poor layouts
+  repeat 3 [
+    ;; the more turtles we have to fit into the same amount of space,
+    ;; the smaller the inputs to layout-spring we'll need to use
+    let factor sqrt count agentset
+    ;; numbers here are arbitrarily chosen for pleasing appearance
+    layout-spring agentset links (1 / factor) (7 / factor) (1 / factor)
+    display  ;; for smooth animation
+  ]
+  ;; don't bump the edges of the world
+  let x-offset max [xcor] of agentset + min [xcor] of agentset
+  let y-offset max [ycor] of agentset + min [ycor] of agentset
+  ;; big jumps look funny, so only adjust a little each time
+  set x-offset limit-magnitude x-offset 0.1
+  set y-offset limit-magnitude y-offset 0.1
+  ask agentset [ setxy (xcor - x-offset / 2) (ycor - y-offset / 2) ]
+end

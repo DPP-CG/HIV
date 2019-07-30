@@ -1,0 +1,225 @@
+to write-cluster-header-Short
+  
+  file-open "TransmissionClustersShort.csv"
+  
+  file-write "degree distribution"
+  file-write "Total Nodes"
+  file-write "Number nodes infected(stopping condition)"
+  file-write "Max degree bin"
+  file-write "Max time to diagnosis from time of infection (min time is 1) in months"
+  file-write "Evolution-time window"
+  file-write "Transmission Rate"
+  
+  file-write "Ticks"
+  file-write "Total infected"
+  file-write "Total infected and alive"
+  
+  repeat 3
+  [
+    file-write ""
+    file-write "In a growing cluster"
+    file-write "In a non-growing cluster"
+    file-write "Not in a cluster"
+  ]
+  
+  ;; 43-62
+  repeat 2
+  [
+    file-write ""
+    file-write "2"
+    file-write "3"
+    file-write "4"
+    file-write "5"
+    file-write "6"
+    file-write "7"
+    file-write "8"
+    file-write "9"
+    file-write "10"
+    file-write ">10"
+  ]
+  repeat 3
+  [
+    file-write ""
+    file-write "< 90 days"
+    file-write "90-240 days"
+    file-write "240=365 days"
+    file-write "1-2 years"
+    file-write "2-3 years"
+    file-write "3-4 years"
+    file-write "4-8 years"
+    file-write "> 8 years"
+  ]
+  
+  file-write ""
+  file-write "Total number of diagnosed cases (dead or alive)" ; 20
+  file-write "Total number of diagnosed cases (alive)" ; 21
+  file-write "Total number of diagnosed cases within time-window (dead or alive)" ; 22
+  file-write "Total number of diagnosed cases within time-window (alive)" ; 23
+  
+  file-print ""
+  file-close
+end
+to report-ECNA-Clusters
+  let people-2006 people with [trans-year >= trans-year-threshold]
+  
+   
+  file-open "TransmissionClustersShort.csv"
+  
+  file-write "MSM"
+  file-write num-nodes
+  file-write termination-node
+  file-write last(degree-dist-Bin)
+  file-write TimeToDiagnosis * time-unit
+  file-write evolution-time-window
+  file-write transmission-rate
+  
+  
+  file-write ticks
+  file-write count people-2006 with [infected? = true]
+  file-write count people-2006 with [infected? = true and dead = 0]  
+    
+  file-write "Infected total"
+  file-write sum [relaxed-cluster-size] of people-2006 with [intervention-cluster? = true]
+  file-write sum [relaxed-cluster-size] of people-2006 with [intervention-cluster? = false and worthy-start? = true]
+  file-write count people-2006 with [relaxed-in-cluster? = false and 
+                                infected? = true]
+  
+   ;; 2-1, 2-2, 2-3
+  file-write "Diagnosed within 3 years"
+  file-write sum [early-diagnosis-counter] of people-2006 with [intervention-cluster? = true]
+  file-write sum [early-diagnosis-counter] of people-2006 with [intervention-cluster? = false and worthy-start? = true]
+  file-write count people-2006 with [in-cluster? = false and 
+                                     infected? = true and 
+                                     current-time - time-at-diagnosis <= early-diagnosis-period]
+
+  
+  file-write "Population size total"
+  file-write count people-2006 with [in-intervention-cluster? = true]
+  file-write count people-2006 with [in-intervention-cluster? = false and in-cluster? = true]
+  file-write count people-2006 with [in-cluster? = false and infected? = true]
+  
+  file-write "Total number of diagnosed cases within time-window in clusters of size"
+  ;;43-1
+  ifelse count people-2006 with [worthy-start? = true and cluster-size = 2] > 0
+  [file-write sum [cluster-size] of people-2006 with [worthy-start? = true and cluster-size = 2]]
+  [file-write total-node-cluster]
+  ;; 44-1
+  ifelse count people-2006 with [worthy-start? = true and cluster-size = 3] > 0
+  [file-write sum [cluster-size] of people-2006 with [worthy-start? = true and cluster-size = 3]]
+  [file-write total-node-cluster]
+  ;; 45-1
+  ifelse count people-2006 with [worthy-start? = true and cluster-size = 4] > 0
+  [file-write sum [cluster-size] of people-2006 with [worthy-start? = true and cluster-size = 4]]
+  [file-write total-node-cluster]
+  ;; 46-1
+  ifelse count people-2006 with [worthy-start? = true and cluster-size = 5] > 0
+  [file-write sum [cluster-size] of people-2006 with [worthy-start? = true and cluster-size = 5]]
+  [file-write total-node-cluster]
+  ;; 47-1
+  ifelse count people-2006 with [worthy-start? = true and cluster-size = 6] > 0
+  [file-write sum [cluster-size] of people-2006 with [worthy-start? = true and cluster-size = 6]]
+  [file-write total-node-cluster]
+  ;; 48-1
+  ifelse count people-2006 with [worthy-start? = true and cluster-size = 7] > 0
+  [file-write sum [cluster-size] of people-2006 with [worthy-start? = true and cluster-size = 7]]
+  [file-write total-node-cluster]
+  ;; 49-1
+  ifelse count people-2006 with [worthy-start? = true and cluster-size = 8] > 0
+  [file-write sum [cluster-size] of people-2006 with [worthy-start? = true and cluster-size = 8]]
+  [file-write total-node-cluster]
+  ;; 50-1
+  ifelse count people-2006 with [worthy-start? = true and cluster-size = 9] > 0
+  [file-write sum [cluster-size] of people-2006 with [worthy-start? = true and cluster-size = 9]]
+  [file-write total-node-cluster]
+  ;; 51-1
+  ifelse count people-2006 with [worthy-start? = true and cluster-size = 10] > 0
+  [file-write sum [cluster-size] of people-2006 with [worthy-start? = true and cluster-size = 10]]
+  [file-write total-node-cluster]
+  ;; 52-1  
+  ifelse count people-2006 with [worthy-start? = true and cluster-size > 10] > 0
+  [file-write sum [cluster-size] of people-2006 with [worthy-start? = true and cluster-size > 10]]
+  [file-write total-node-cluster]
+  
+   ;; 53-1
+  file-write "Total number of clusters of size"
+  ifelse count people-2006 with [worthy-start? = true and cluster-size = 2] > 0
+  [file-write count people-2006 with [worthy-start? = true and cluster-size = 2]]
+  [file-write total-node-cluster]
+  ;; 54-1
+  ifelse count people-2006 with [worthy-start? = true and cluster-size = 3] > 0
+  [file-write count people-2006 with [worthy-start? = true and cluster-size = 3]]
+  [file-write total-node-cluster]
+  ;; 55-1
+  ifelse count people-2006 with [worthy-start? = true and cluster-size = 4] > 0
+  [file-write count people-2006 with [worthy-start? = true and cluster-size = 4]]
+  [file-write total-node-cluster]
+  ;; 56-1
+  ifelse count people-2006 with [worthy-start? = true and cluster-size = 5] > 0
+  [file-write count people-2006 with [worthy-start? = true and cluster-size = 5]]
+  [file-write total-node-cluster]
+  ;; 57-1
+  ifelse count people-2006 with [worthy-start? = true and cluster-size = 6] > 0
+  [file-write count people-2006 with [worthy-start? = true and cluster-size = 6]]
+  [file-write total-node-cluster]
+  ;; 58-1
+  ifelse count people-2006 with [worthy-start? = true and cluster-size = 7] > 0
+  [file-write count people-2006 with [worthy-start? = true and cluster-size = 7]]
+  [file-write total-node-cluster]
+  ;; 59-1
+  ifelse count people-2006 with [worthy-start? = true and cluster-size = 8] > 0
+  [file-write count people-2006 with [worthy-start? = true and cluster-size = 8]]
+  [file-write total-node-cluster]  
+  ;; 60-1
+  ifelse count people-2006 with [worthy-start? = true and cluster-size = 9] > 0
+  [file-write count people-2006 with [worthy-start? = true and cluster-size = 9]]
+  [file-write total-node-cluster]
+  ;; 61-1
+  ifelse count people-2006 with [worthy-start? = true and cluster-size = 10] > 0
+  [file-write count people-2006 with [worthy-start? = true and cluster-size = 10]]
+  [file-write total-node-cluster]
+  ;; 62-1
+  ifelse count people-2006 with [worthy-start? = true and cluster-size > 10] > 0
+  [file-write count people-2006 with [worthy-start? = true and cluster-size > 10]]
+  [file-write total-node-cluster]
+  
+  
+   file-write "Number of diagnosed cases in any cluster"
+  file-write count people-2006 with [in-cluster? = true and current-time - time-at-diagnosis <= time-window and time-at-diagnosis - time-at-infection < 3]
+  file-write count people-2006 with [in-cluster? = true and current-time - time-at-diagnosis <= time-window and time-at-diagnosis - time-at-infection >= 3 and time-at-diagnosis - time-at-infection < 8]
+  file-write count people-2006 with [in-cluster? = true and current-time - time-at-diagnosis <= time-window and time-at-diagnosis - time-at-infection >= 8 and time-at-diagnosis - time-at-infection < 12]
+  file-write count people-2006 with [in-cluster? = true and current-time - time-at-diagnosis <= time-window and time-at-diagnosis - time-at-infection >= 12 and time-at-diagnosis - time-at-infection < 24]
+  file-write count people-2006 with [in-cluster? = true and current-time - time-at-diagnosis <= time-window and time-at-diagnosis - time-at-infection >= 24 and time-at-diagnosis - time-at-infection < 36]
+  file-write count people-2006 with [in-cluster? = true and current-time - time-at-diagnosis <= time-window and time-at-diagnosis - time-at-infection >= 36 and time-at-diagnosis - time-at-infection < 48]
+  file-write count people-2006 with [in-cluster? = true and current-time - time-at-diagnosis <= time-window and time-at-diagnosis - time-at-infection >= 48 and time-at-diagnosis - time-at-infection < 96]
+  file-write count people-2006 with [in-cluster? = true and current-time - time-at-diagnosis <= time-window and time-at-diagnosis - time-at-infection >= 96]
+  
+  file-write "Number of diagnosed cases in priority cluster"
+  file-write count people-2006 with [in-intervention-cluster? = true and current-time - time-at-diagnosis <= time-window and time-at-diagnosis - time-at-infection < 3]
+  file-write count people-2006 with [in-intervention-cluster? = true and current-time - time-at-diagnosis <= time-window and time-at-diagnosis - time-at-infection >= 3 and time-at-diagnosis - time-at-infection < 8]
+  file-write count people-2006 with [in-intervention-cluster? = true and current-time - time-at-diagnosis <= time-window and time-at-diagnosis - time-at-infection >= 8 and time-at-diagnosis - time-at-infection < 12]
+  file-write count people-2006 with [in-intervention-cluster? = true and current-time - time-at-diagnosis <= time-window and time-at-diagnosis - time-at-infection >= 12 and time-at-diagnosis - time-at-infection < 24]
+  file-write count people-2006 with [in-intervention-cluster? = true and current-time - time-at-diagnosis <= time-window and time-at-diagnosis - time-at-infection >= 24 and time-at-diagnosis - time-at-infection < 36]
+  file-write count people-2006 with [in-intervention-cluster? = true and current-time - time-at-diagnosis <= time-window and time-at-diagnosis - time-at-infection >= 36 and time-at-diagnosis - time-at-infection < 48]
+  file-write count people-2006 with [in-intervention-cluster? = true and current-time - time-at-diagnosis <= time-window and time-at-diagnosis - time-at-infection >= 48 and time-at-diagnosis - time-at-infection < 96]
+  file-write count people-2006 with [in-intervention-cluster? = true and current-time - time-at-diagnosis <= time-window and time-at-diagnosis - time-at-infection >= 96]
+ 
+  file-write "Number of diagnosed cases not in any cluster"
+  file-write count people-2006 with [in-cluster? = false and current-time - time-at-diagnosis <= time-window and time-at-diagnosis - time-at-infection < 3]
+  file-write count people-2006 with [in-cluster? = false and current-time - time-at-diagnosis <= time-window and time-at-diagnosis - time-at-infection >= 3 and time-at-diagnosis - time-at-infection < 8]
+  file-write count people-2006 with [in-cluster? = false and current-time - time-at-diagnosis <= time-window and time-at-diagnosis - time-at-infection >= 8 and time-at-diagnosis - time-at-infection < 12]
+  file-write count people-2006 with [in-cluster? = false and current-time - time-at-diagnosis <= time-window and time-at-diagnosis - time-at-infection >= 12 and time-at-diagnosis - time-at-infection < 24]
+  file-write count people-2006 with [in-cluster? = false and current-time - time-at-diagnosis <= time-window and time-at-diagnosis - time-at-infection >= 24 and time-at-diagnosis - time-at-infection < 36]
+  file-write count people-2006 with [in-cluster? = false and current-time - time-at-diagnosis <= time-window and time-at-diagnosis - time-at-infection >= 36 and time-at-diagnosis - time-at-infection < 48]
+  file-write count people-2006 with [in-cluster? = false and current-time - time-at-diagnosis <= time-window and time-at-diagnosis - time-at-infection >= 48 and time-at-diagnosis - time-at-infection < 96]
+  file-write count people-2006 with [in-cluster? = false and current-time - time-at-diagnosis <= time-window and time-at-diagnosis - time-at-infection >= 96]
+  
+  file-write ""
+  file-write count people-2006 with [aware? = true] ; 20-1
+  file-write count people-2006 with [aware? = true and dead = 0] ; 21-1
+  file-write count people-2006 with [ticks - time-at-diagnosis  <= time-window and aware? = true] ; 22-1
+  file-write count people-2006 with [ticks - time-at-diagnosis  <= time-window and dead = 0 and aware? = true] ; 23-1
+  
+  
+  file-print ""
+  file-close
+end

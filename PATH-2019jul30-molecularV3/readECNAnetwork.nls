@@ -1,0 +1,132 @@
+to importNetwork
+  
+  ask people [
+    set infected? false
+    set dead 1
+    die
+  ]
+  
+  ask Ttree-links[die]
+  ask Ptree-links[die]
+;  ask infecteds[set breed people
+;    ;  set time-at-infection ticks - 3 * time-unit + time-of-infection
+;    ;  set time-at-diagnosis ticks - 3 * time-unit + time-of-diagnosis
+;    ;;source-of-infection
+;    ;     set infected? true
+;    ;        set aware? true
+;    ;        set trans-year ceiling ((time-at-infection - sim-dry-run + 1) / time-unit)
+;  ]
+  ask ECNA-links[set breed Ttree-links]
+  ;  let m csv:from-file "/ECNA/adjacency-matrix.csv"
+  ;  let mat matrix:from-row-list m
+  ;  let num-nodesInf count infecteds ;item 0 (matrix:dimensions mat)
+  ;  print num-nodesInf
+  ;  let sizex num-nodesInf - 1
+  ;  let i 0
+  ;  let j 1
+  ;  repeat (sizex) [
+  ;    while [j < (sizex + 1)] [
+  ;      let adj_val matrix:get mat i j
+  ;      if (adj_val = 1) [
+  ;        ask turtles with [who = (i)] [
+  ;          
+  ;          create-Ttree-link-with turtle (j) [set color green]
+  ;         ]
+  ;      ]
+  ;      set j j + 1
+  ;    ]
+  ;   set i i + 1
+  ;   set j i + 1
+  ;  ]
+  
+  file-open "ECNAdata.csv"
+  while [not file-at-end?]
+      [
+        let idData file-read 
+        ; print idData
+        ask people with [who = (idData)][
+          set dead 0
+          let data file-read 
+          ; print data
+          set time-at-infection data; ticks - 3 * time-unit + data
+          set data file-read 
+          ;     print data
+          set time-at-diagnosis data; ticks - 3 * time-unit + data
+          set data file-read 
+          ;     print data
+          set source-of-infection data
+          set infected? true
+          ifelse time-at-diagnosis > ticks[
+          set aware? false]
+          [set aware? true
+          ]
+          set trans-year ceiling ((time-at-infection + 1) / time-unit) ;ceiling ((time-at-infection - sim-dry-run + 1) / time-unit)
+          
+        ] 
+        
+        ; show item 2 (item 3 row)
+  ]
+  file-close
+  
+end
+
+
+;to importNetwork
+;  
+;  ask people [
+;    set infected? false
+;    set dead 1
+;  ]
+;  
+;  ask Ttree-links[die]
+;  ask Ptree-links[die]
+;  let m csv:from-file "/ECNA/adjacency-matrix.csv"
+;  let mat matrix:from-row-list m
+;  let num-nodesInf count infecteds ;item 0 (matrix:dimensions mat)
+;  print num-nodesInf
+;  let sizex num-nodesInf - 1
+;  let i 0
+;  let j 1
+;  repeat (sizex) [
+;    while [j < (sizex + 1)] [
+;      let adj_val matrix:get mat i j
+;      if (adj_val = 1) [
+;        ask turtles with [who = (i)] [
+;          
+;          create-Ttree-link-with turtle (j) [set color green]
+;         ]
+;      ]
+;      set j j + 1
+;    ]
+;   set i i + 1
+;   set j i + 1
+;  ]
+;  
+;  file-open "/ECNA/ECNAdata.csv"
+;while [not file-at-end?]
+;   [
+;    let idData file-read 
+;     ; print idData
+;    ask turtles with [who = (idData)][
+;        set dead 0
+;        let data file-read 
+;        print data
+;        set time-at-infection ticks - 3 * time-unit + data
+;        set data file-read 
+;            print data
+;        set time-at-diagnosis ticks - 3 * time-unit + data
+;        set data file-read 
+;            print data
+;        set source-of-infection data
+;        set infected? true
+;        set aware? true
+;        set trans-year ceiling ((time-at-infection - sim-dry-run + 1) / time-unit)
+;          
+;      ]
+;      
+;   ; show item 2 (item 3 row)
+;  ]
+;  file-close
+;  
+;end
+;

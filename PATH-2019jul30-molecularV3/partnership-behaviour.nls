@@ -1,0 +1,152 @@
+
+to assign-sexual-behavior
+
+  ;Method 1
+  ;Node partner-type can be 1 main only,2 casual only,3 main+casual
+  ;link partnership-type can be 1 main or 2 casual
+  
+  let num-casual-behavior (0.41 * (count people))
+    
+  ask people with [desired-degree = 1] [ ;step 1
+    set partner-type 1
+    ask my-links[
+      ask other-end[ ;step 2
+        ifelse (desired-degree >= 2)
+        [ ;node is main+casual ; links are main
+          set partner-type 3
+          ask my-links [set partnership-type 1]
+        ]
+        [ ;node is main only ; links are main
+          set partner-type 1
+          ask my-links [set partnership-type 1]
+        ]
+      ]
+      set partnership-type 1
+    ]
+  ]
+  
+  ask max-n-of num-casual-behavior people [desired-degree] [ ;step 3
+    set partner-type 2
+    ask my-links[ ;with [partnership-type = -1][ 
+    if partnership-type = -1
+      [set partnership-type 2]
+    if partnership-type = 1
+      [ask other-end [set partner-type 3]
+       set partnership-type 2]
+    
+    ]
+  ]
+  
+  ask people with [partner-type = -1][ ;step 4
+    set partner-type 3
+    ask my-links with [partnership-type = -1][
+       ifelse ([partner-type] of other-end = 1)
+       [set partnership-type 1]
+       [set partnership-type 2] 
+      ]
+    ]
+  
+  ask people with [partner-type = 3][
+;    if partner-type = 1
+;     ask my-links[ set partnership-type = 1]
+;    if partner-type = 2
+;    ask my-links[ set partnership-type = 2]
+    let flag 0
+    if all? my-links [partnership-type = 2][
+      ask my-links[
+        if [partner-type] of other-end = 3 ;or [partner-type] of other-end = 1
+        [set partnership-type 1
+        set flag 1]
+      ]
+      if flag = 0 [set partner-type 2]
+    ]
+  ]
+  
+  ask links with [partnership-type = 1][set active? true]
+
+end
+  
+ 
+;to assign-sexual-behavior
+;;Method 2  
+;  ;Node partner-type can be 1 main only,2 casual only,3 main+casual
+;; ;link partnership-type can be 1 main or 2 casual
+;  
+;  ;let num-casual-behavior (0.41 * (count people))
+;  
+;  let total-pop1 count people
+;    
+;  ask people with [desired-degree = 1] [ ;step 1
+;    set partner-type 1
+;    ask my-links[
+;      ask other-end[ ;step 2
+;        ifelse (desired-degree >= 2)
+;        [ ;node is main+casual ; links are casual
+;          set partner-type 3
+;          ask my-links [set partnership-type 1]
+;        ]
+;        [ ;node is main only ; links are main
+;          set partner-type 1
+;          ask my-links [set partnership-type 1]
+;        ]
+;      ]
+;      set partnership-type 1
+;    ]
+;  ]
+;  
+;  ask links with [partnership-type = -1][
+;    set partnership-type 2
+;  ]
+;  
+;  while [count people with [partner-type = -1] / total-pop1 > 0.41][
+;    ask n-of 1 links with [partnership-type = 2][
+;      set partnership-type 1 ;set as main
+;      ask both-ends with [partner-type != 1][
+;          set partner-type 3
+;        ]
+;      ]
+;    ]
+;
+;
+;ask people with [partner-type = -1][
+;  set partner-type 2
+;]
+;  
+;ask people with [partner-type = 2][
+;  ask my-links[
+;      set partnership-type 2
+;    ]
+;]
+;end  
+ 
+;other    
+;     if all? my-links [partnership-type = 2][;insert check to see which if all links are casual and if so which link should be assigned as main
+;      if my-links with [[partner-type] of other-end = 3] != 0 [
+;        ask n-of 1 my-links with [[partner-type] of other-end = 3][
+;         set partnership-type 1
+;        ]
+;      ]
+;    ]
+
+  
+; let prop-left max (0, 0.44 * total - count people with [behavior = 1] / count people) ;fix
+  
+; ask n-of prop-left people with [desired-degree > 1] [set behavior 1]
+  
+;  ask people with [desired-degree != 1] [
+;    
+;    if (desired-degree = 0) [set behavior 0]
+;    
+;    ifelse (count people with [behavior = 1] * 100 / count people < 44)
+;      [if (desired-degree = 2) [set behavior 1]]
+;      [if (desired-degree = 2) [set behavior 3]]
+;    
+;    if (desired-degree > 2) [set behavior 3]  
+;    
+;  ]
+;  
+  
+  
+  ; to test proportion of people with behavior 1,2,3
+  
+ 

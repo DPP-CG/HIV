@@ -1,0 +1,799 @@
+to generate-cluster
+  
+  let people-2006 people with [trans-year >= trans-year-threshold ]
+   print trans-year-threshold
+  
+  ;;; set a high negative value for persons not yet diagnosed so that following always true for them: current-time - time-at-diagnosis > time-window
+;  ask people-2006 with [time-at-diagnosis = 0][
+;    set time-at-diagnosis -1000000000000
+;  ]
+  
+  set time-window 72;72;72;36;72;36;100;36
+  set intervention-threshold-time-window 12;
+  set intervention-threshold 1;3;4;2;1;2;1;2;1;2;1;2;1;2;1 ;2;3;5;;; MODIFY
+  set acute-infection-period 3
+  set recent-infection-period 6
+  set early-diagnosis-period 36
+  set evolution-time-window 60;60;10;30;60;120;180;96;  genetic distance of 0.5% if 60, 1.5% if 180; check 30, 60, 120, 180
+
+  Create-PTree people-2006;; generates clusters
+  ;;it does below
+  ;;calls 'explore-color yellow'
+  ;;inside yellow loop --> calls 'explore-color green'
+  ;;inside green loop--> has case 1 to case 4: each calls 'explore-color green'
+  ;;
+  
+  find-all-clusters 1 people-2006;; identifies clusters for those diagnosed within past 3 years for comparing with surveillance data
+  find-all-clusters 2 people-2006
+  find-all-clusters 3 people-2006
+  ;;IT DOES BELOW
+  ;;find-all-clusters 1, 2, and 3 each call 'explore-color gray' 
+  ;;inside gray loop --> calls 'explore-color blue'
+  ;;inside blue loop --> calls 'explore-color blue'
+  
+  report-cluster-statistics
+  
+end
+
+to Create-PTree [people-2006]
+  
+;  set time-window 36;72;36;72;36;100;36
+;  set intervention-threshold-time-window 12
+;  set intervention-threshold 1;3;4;2;1;2;1;2;1;2;1;2;1;2;1 ;2;3;5
+;  set acute-infection-period 3
+;  set recent-infection-period 6
+;  set early-diagnosis-period 36
+;  set evolution-time-window 120;60;60;120;180;96 ;  genetic distance of 0.5% if 60, 1.5% if 180; check 30, 60, 120, 180
+
+  set current-time ticks
+
+  ;; Explore transmission clusters for the first time
+
+  let start giant-start-node;;;;
+  
+  ;; Inititalize all clsuter-related variables in turtles
+  ask people-2006
+  [
+    set explored? false
+    set PTree-counted? false
+    if aware? = false and infected? = true [set color red]
+    if aware? = true and infected? = true [set color green]
+  ]
+
+  loop
+  [
+    set start one-of people-2006 with [aware? = true and PTree-counted? = false]
+    let result count people-2006 with [aware? = true] - count people-2006 with [aware? = true and PTree-counted? = true]
+    if (result mod 1000 = 0)
+    [print (word "# number of people-2006 left creating PTree: " result)]
+    
+    if start = nobody [stop]
+
+    ;; Reset global variables related to clusters
+    set cluster-diagnosis 0 ;; diag_N
+    set cluster-infection 0 ;; inf_N
+
+    ask start 
+    [
+      explore-cluster yellow 
+      set PTree-counted? true
+    ]
+
+    ;; Reset the nodes outside time-window to be unexplored
+    ask people-2006 
+    [set explored? false]   
+  ]
+
+  ;; Explore transmission clusters for the second time to start collecting relevant statistics
+  ;; Reset the nodes outside time-window to be unexplored
+  
+end
+
+;; to find all the clusters in the transmission network, their sizes and starting turtles
+to find-all-clusters [Times people-2006]
+  
+;  set time-window 36;72;36;72;36;100;36
+;  set intervention-threshold-time-window 12
+;  set intervention-threshold 1;3;4;2;1;2;1;2;1;2;1;2;1;2;1 ;2;3;5
+;  set acute-infection-period 3
+;  set recent-infection-period 6
+;  set early-diagnosis-period 36
+;  set evolution-time-window 60;60;120;180;96
+
+  set current-time ticks
+
+  ;; Explore transmission clusters for the first time
+
+  let start giant-start-node;;;;
+
+  if Times = 1
+  [
+    ;; Inititalize all clsuter-related variables in turtles
+    ask people-2006
+    [
+      ;; for cluster-start-node only
+      set worthy-start? false ;; yes indicates the agent the starting node of a cluster of size greater than 2
+      set intervention-cluster? false ;; yes indicates the cluster fits the definition of a growing cluster
+      set cluster-size 0 ;; >0 only if the node is a starting node of a cluster of size greater than 2
+      set alive-cluster-size 0 ;; >0 only if the node is a starting node of a cluster of more than 2 living nodes
+      set relaxed-cluster-size 0
+      set relaxed-alive-cluster-size 0
+      set cluster-size-with-undiagnosed 0
+      set cluster-intervention-size 0
+      
+      set explored? false
+      set in-cluster? false ;; yes indicates if the nodes (diagnosed and undiagnosed) has been linked to a cluster of size larger than 2
+      set in-intervention-cluster? false
+      set relaxed-in-cluster? false
+      
+      set counted? false
+      set cluster-id 0 ;; for nodes in a cluster, this id-value is greater than or equal to 1
+      
+      initialize-network-counters
+    ]
+    
+    set cluster-counter 0
+    
+    loop
+    [
+      ;let start1 start
+      ;; Pick one unexplored, diagnosed node wihtin time-winodw
+      
+      set start one-of people-2006 with [aware? = true and explored? = false and current-time - time-at-diagnosis <= time-window]
+      ;; If no one is left to explored, exit the loop
+      if start = nobody [stop]
+      
+      ;; Reset global variables related to clusters
+      reset-cluster-globals
+      
+      ask start 
+      [explore-cluster gray]
+      
+      ;; Reset the nodes outside time-window to be unexplored
+      ask people-2006 with [current-time - time-at-diagnosis > time-window]
+      [set explored? false]
+      
+      ;; Label starting node for worthy clusters
+      ask start
+      [
+        if component-size > 1
+        [
+          set worthy-start? true
+          set cluster-size component-size
+          
+          if intervention-infection-counter >= intervention-threshold
+          [
+            set intervention-cluster? true
+            set cluster-intervention-size intervention-infection-counter
+          ]
+        ]
+      ]
+    ]
+    ;; End of the loop for exploring clusters 
+    ;; End of first step of exploring to find starting nodes of worthy clusters
+  ]
+  ;; End of Times = 1
+  
+  ;; Explore transmission clusters for the second time to start collecting relevant statistics
+  ;; Reset the nodes outside time-window to be unexplored
+  
+  if Times = 2
+  [
+    ask people-2006
+    [
+      set explored? false
+      set in-cluster? false ;; yes indicates if the nodes (diagnosed and undiagnosed) has been linked to a cluster of size larger than 2
+      set in-intervention-cluster? false
+      set relaxed-in-cluster? false
+      set counted? false
+      set cluster-id 0 ;; for nodes in a cluster, this id-value is greater than or equal to 1
+      
+      ifelse current-time - time-at-infection <= acute-infection-period
+      [set color red]
+      [
+        ifelse current-time - time-at-infection <= recent-infection-period
+        [set color yellow]
+        [set color green]
+      ]
+    ]
+    
+    set cluster-counter 0
+    set intervention-cluster-counter 0
+    
+    loop
+    [
+      ;set start one-of people-2006 with [ (aware? = true) and (explored? = false) and (infected? = true) and
+      ;                             (time-at-diagnosis > 0) and  (current-time - time-at-diagnosis <= time-window )and
+      ;                             (intervention-cluster? = true)]
+      set start one-of people-2006 with [intervention-cluster? = true and explored? = false]
+      ;; If no one is left to explored, exit the loop
+      if start = nobody [stop]
+      
+      ;; Reset global variables related to clusters
+      reset-cluster-globals
+
+      ask start 
+      [explore-cluster gray]
+
+      ;; Reset the nodes outside time-window to be unexplored
+      ask people-2006 with [current-time - time-at-diagnosis > time-window]
+      [set explored? false]
+
+      ask start
+      [update-cluster-globals]
+    ]
+    ;; End of the loop for exploring clusters 
+    ;; End of second step of exploring to find starting nodes of intervention clusters
+  ]
+  ;; End of Times = 2
+
+  if Times = 3
+  [
+    set intervention-cluster-counter 0 ;; This part is to calculate non-intervention-threshold
+    ;; Explore transmission clusters for the third time
+    loop
+    [
+      set start one-of people-2006 with [worthy-start? = true and intervention-cluster? = false and explored? = false]
+      if start = nobody [stop]
+      reset-cluster-globals
+
+      ask start 
+      [explore-cluster gray]
+
+      ask people-2006 with [current-time - time-at-diagnosis > time-window]
+      [set explored? false]
+
+      ask start
+      [update-cluster-globals]
+    ]
+    ;; End of the loop for exploring clusters 
+    ;; End of third step of exploring to find starting nodes of non-intervention clusters
+  ];; End of Times = 3
+  
+end
+
+
+to explore-cluster [new-color]  ;; node procedure
+
+  ;; Check if the node has been linked to another cluster before, saving time from examining the already-explored node
+  if explored? = true
+  [
+    ;print (word "neighbor # has been explored: " who)
+    stop
+  ]
+
+  ;; starting point for creating
+  if (new-color = yellow)
+  [
+    set PTree-starting-node who ;; record where you start
+    
+    let cluster-current-node-aware aware? ; diag_n
+    
+    let cluster-current-node-infection time-at-infection ; inf_n
+    let cluster-current-node-diagnosis time-at-diagnosis; diag_n
+    let cluster-current-arc-infection 0; inf_N,n
+
+    set cluster-diagnosis time-at-diagnosis
+    set cluster-infection time-at-infection
+
+    set cluster-previous-node-infection time-at-infection
+    set cluster-previous-node-diagnosis time-at-diagnosis
+    set cluster-previous-node-aware aware?
+
+    ;;; Read the current node info and stor it for later use again
+    let t-cluster-infection cluster-infection
+    let t-cluster-diagnosis cluster-current-node-diagnosis
+    let t-cluster-previous-node-aware cluster-current-node-aware
+    let t-cluster-previous-node-diagnosis cluster-current-node-diagnosis
+    let t-cluster-previous-node-infection cluster-current-node-infection
+
+    set explored? true
+
+    ;let temp-node who
+
+    if count Ttree-link-neighbors > 0
+    [
+      set color new-color
+      ;print (word "Time: " current-time)
+      ;print (word "Starting with node: " who)
+      ;print (word "inf: " cluster-current-node-infection)
+      ;print (word "diag: " cluster-current-node-diagnosis)
+      ask Ttree-link-neighbors
+      [
+        set cluster-infection t-cluster-infection
+        
+        if (cluster-infection < time-at-infection)
+        [set cluster-infection time-at-infection]
+        set cluster-diagnosis t-cluster-diagnosis
+        set cluster-previous-node-aware t-cluster-previous-node-aware
+        set cluster-previous-node-diagnosis  t-cluster-previous-node-diagnosis
+        set cluster-previous-node-infection  t-cluster-previous-node-infection
+        
+        ;print "Info to pass on to its neighbor"
+        ;print (word "cluster-infection: " cluster-infection)
+        ;print (word "cluster-diagnosis: " cluster-diagnosis)
+        
+         explore-cluster green
+        ;print (word "back to starting node: " temp-node)
+      ]
+      ;; codes starting from here to the last of print to be deleted
+      ;set cluster-infection t-cluster-infection
+      ;set cluster-diagnosis t-cluster-diagnosis
+      ;set cluster-previous-node-aware t-cluster-previous-node-aware
+      ;set cluster-previous-node-diagnosis  t-cluster-previous-node-diagnosis
+      ;set cluster-previous-node-infection  t-cluster-previous-node-infection
+      ;print (word "stop branching from starting node: " who)
+      ;print  "With the following info to pass on: "
+      ;print (word "cluster-infection: " cluster-infection)
+      ;print (word "cluster-diagnosis: " cluster-diagnosis)
+    ]
+  ];;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+   ;; Codes meant for exploring the starting nodes end here
+  
+  ;; Codes meant for exploring subsequent nodes start here
+  if (new-color = green)
+  [
+    let cluster-current-node-aware aware? ; diag_n
+                                          ;;; modify cluster-current-node-aware to reflect the position within or outside time-window
+    
+    let cluster-current-node-infection time-at-infection ; inf_n
+    let cluster-current-node-diagnosis time-at-diagnosis; diag_n
+    let cluster-current-arc-infection 0; inf_N,n
+    
+    ;;;Case 1
+    if (cluster-current-node-aware = true) and
+       (cluster-previous-node-aware = true) and
+       (explored? = false) ;; condition is set up to ensure only one of the 4 cases are exectuted once
+    [
+      ;print "from diagnosed to diagnosed"
+      ;print (word "Examining node #: " who)
+      ;print (word "inf_n: " cluster-current-node-infection)
+      ;print (word "diag_n: " cluster-current-node-diagnosis)
+      
+      ifelse cluster-current-node-infection > cluster-previous-node-infection
+      [set cluster-current-arc-infection cluster-current-node-infection]; inf_(N,n) = inf_n
+      [set cluster-current-arc-infection cluster-previous-node-infection];inf_(N,n) = inf_N
+      
+      if cluster-infection > cluster-current-arc-infection
+      [set cluster-infection cluster-current-arc-infection]
+      
+      
+      ;; Actions to be taken only if two nodes can be phelogentically-clustered
+      ;             ifelse abs(cluster-current-node-diagnosis - cluster-infection) +
+      ;                abs(cluster-diagnosis - cluster-infection) <=
+      ;                evolution-time-window
+
+      ;; abs(dig_n - inf_nN) + abs (dig_N - inf_nN) <= evolution time window
+      ;let result abs(cluster-current-node-diagnosis - cluster-infection) + abs(cluster-diagnosis - cluster-infection)
+      ;print (word "Evolution test result: " result)
+      if abs(cluster-current-node-diagnosis - cluster-infection) +
+         abs(cluster-diagnosis - cluster-infection) <=
+         evolution-time-window
+      [
+        create-PTree-link-with person PTree-starting-node 
+        [set color red]
+        ;print "Created a PTree-link"
+      ]
+
+      let t-cluster-infection cluster-infection
+      let t-cluster-diagnosis cluster-diagnosis
+      let t-cluster-previous-node-aware cluster-current-node-aware
+      let t-cluster-previous-node-diagnosis  cluster-current-node-diagnosis
+      let t-cluster-previous-node-infection  cluster-current-node-infection
+      
+      set explored? true
+      ;print (word "inf_N: " cluster-infection)
+      ;print (word "dig_N: " cluster-diagnosis)
+      ;let temp-node who
+      ask Ttree-link-neighbors
+      [
+        set cluster-infection t-cluster-infection
+        set cluster-diagnosis t-cluster-diagnosis
+        set cluster-previous-node-aware t-cluster-previous-node-aware
+        set cluster-previous-node-diagnosis  t-cluster-previous-node-diagnosis
+        set cluster-previous-node-infection  t-cluster-previous-node-infection
+        
+        explore-cluster green
+        ;print (word "back to branch from node:" temp-node)
+      ]
+      
+    ];; End of Diagnosis-within-time-window vs. Diagnosis-within-time-window
+    
+    ;;; Case 2
+    if (cluster-current-node-aware = true) and
+       (cluster-previous-node-aware = false)  and
+       (explored? = false)
+    [
+      ifelse cluster-current-node-infection > cluster-previous-node-infection
+      [set cluster-current-arc-infection cluster-current-node-infection]; inf_(N,n) = inf_n
+      [set cluster-current-arc-infection cluster-previous-node-infection];inf_(N,n) = inf_N
+      
+      if cluster-current-arc-infection < cluster-infection
+      [set cluster-infection cluster-current-arc-infection]
+
+      ;print "from undiagnosed to diagnosed"
+      ;print (word "Examining node #: " who)
+      ;print (word "inf_n: " cluster-current-node-infection)
+      ;print (word "diag_n: " cluster-current-node-diagnosis)
+      
+      ;; abs(dig_n - inf_nN) + abs (dig_N - inf_nN) <= evolution time window
+      ;let result abs(cluster-current-node-diagnosis - cluster-infection) + abs(cluster-diagnosis - cluster-infection)
+      ;print (word "Evolution test result: " result)
+      if abs(cluster-current-node-diagnosis - cluster-infection) +
+         abs(cluster-diagnosis - cluster-infection) <=
+         evolution-time-window
+      [
+        create-PTree-link-with person PTree-starting-node 
+        [set color red]
+        ;print "Created a PTree-link"
+      ]
+      
+      let t-cluster-infection cluster-infection
+      let t-cluster-diagnosis cluster-diagnosis
+      let t-cluster-previous-node-aware cluster-current-node-aware
+      let t-cluster-previous-node-diagnosis  cluster-current-node-diagnosis
+      let t-cluster-previous-node-infection  cluster-current-node-infection
+      
+      set explored? true
+      
+      ;print (word "cluster-infection: " cluster-infection)
+      ;print (word "cluster-diagnosis: " cluster-diagnosis)
+      ;let temp-node who
+      
+      ask Ttree-link-neighbors
+      [
+        set cluster-infection t-cluster-infection
+        set cluster-diagnosis t-cluster-diagnosis
+        set cluster-previous-node-aware t-cluster-previous-node-aware
+        set cluster-previous-node-diagnosis  t-cluster-previous-node-diagnosis
+        set cluster-previous-node-infection  t-cluster-previous-node-infection
+        
+        explore-cluster green
+        ;print (word "back to branch from node:" temp-node)
+      ]
+      ;;; note that these variables have to be set in the ask lin-neighbors bracket
+      ;;; because of the breadth-search nature of the function explore
+    ];; End of Diagnosis-within-time-window vs. Diagnosis-within-time-window
+    
+    ;; Case 3
+    if (cluster-current-node-aware = false) and
+    (cluster-previous-node-aware = true)  and
+    (explored? = false)
+    [   
+      set explored? true
+      ifelse cluster-current-node-infection > cluster-previous-node-infection
+      [set cluster-current-arc-infection cluster-current-node-infection]; inf_(N,n) = inf_n
+      [set cluster-current-arc-infection cluster-previous-node-infection];inf_(N,n) = inf_N
+
+      if cluster-current-arc-infection < cluster-infection
+      [set cluster-infection cluster-current-arc-infection]
+
+      ;print "from diagnosed to undiagnosed"
+      ;print (word "Examining node #: " who)
+      ;print (word "inf_n: " cluster-current-node-infection)
+      ;print (word "diag_n: " cluster-current-node-diagnosis)
+      ;let result abs(cluster-current-node-diagnosis - cluster-infection) + abs(cluster-diagnosis - cluster-infection)
+      ;print (word "Evolution test result: " result)
+      ;if abs(cluster-diagnosis - cluster-infection) <=
+      if abs(cluster-diagnosis - cluster-infection) + 
+         abs (current-time - cluster-infection) <= 
+         evolution-time-window
+      [
+        create-PTree-link-with person PTree-starting-node 
+        [set color red]
+      ]
+      
+      set counted? true
+      
+      let t-cluster-infection cluster-infection
+      let t-cluster-diagnosis cluster-diagnosis
+      let t-cluster-previous-node-aware cluster-current-node-aware
+      let t-cluster-previous-node-diagnosis  cluster-current-node-diagnosis
+      let t-cluster-previous-node-infection  cluster-current-node-infection
+      
+      set explored? true
+      
+      ;let temp-node who
+      ;print (word "cluster-infection: " cluster-infection)
+      ;print (word "cluster-diagnosis: " cluster-diagnosis)
+
+      ask Ttree-link-neighbors
+      [
+        set cluster-infection t-cluster-infection
+        set cluster-diagnosis t-cluster-diagnosis
+        set cluster-previous-node-aware t-cluster-previous-node-aware
+        set cluster-previous-node-diagnosis  t-cluster-previous-node-diagnosis
+        set cluster-previous-node-infection  t-cluster-previous-node-infection
+        
+        explore-cluster green
+        ;print (word "back to branch from node:" temp-node)
+      ]
+
+      ;;; note that these variables have to be set in the ask lin-neighbors bracket
+      ;;; because of the breadth-search nature of the function explore
+      ;print (word "stop branching from node:" who)
+    ];; End of Diagnosis-within-time-window vs. Diagnosis-within-time-window
+
+    ;; Case 4
+    if (cluster-current-node-aware = false) and
+       (cluster-previous-node-aware = false) and
+       (explored? = false)
+    [
+      set explored? true
+      ifelse cluster-current-node-infection > cluster-previous-node-infection
+      [set cluster-current-arc-infection cluster-current-node-infection]; inf_(N,n) = inf_n
+      [set cluster-current-arc-infection cluster-previous-node-infection];inf_(N,n) = inf_N
+      
+      if cluster-current-arc-infection < cluster-infection
+      [set cluster-infection cluster-current-arc-infection]
+      
+      ;print "from undiagnosed to undiagnosed"
+      ;print (word "Examining node #: " who)
+      ;print (word "inf_n: " cluster-current-node-infection)
+      ;print (word "diag_n: " cluster-current-node-diagnosis)
+      ;; Actions to be taken only if two nodes can be phelogentically-tree-linked
+      ;; abs (dig_N - inf_nN) <= evolution time window
+      
+      ;if abs(cluster-diagnosis - cluster-infection) <=
+      ;let result abs(cluster-current-node-diagnosis - cluster-infection) + abs(cluster-diagnosis - cluster-infection)
+      ;print (word "Evolution test result: " result)
+      if abs(cluster-diagnosis - cluster-infection) + 
+         abs (current-time - cluster-infection) <=
+         evolution-time-window
+      [
+        create-PTree-link-with person PTree-starting-node 
+        [set color red]
+        ;print "Created a PTree-link"
+      ]
+      
+      let t-cluster-infection cluster-infection
+      let t-cluster-diagnosis cluster-diagnosis
+      let t-cluster-previous-node-aware cluster-current-node-aware
+      let t-cluster-previous-node-diagnosis  cluster-current-node-diagnosis
+      let t-cluster-previous-node-infection  cluster-current-node-infection
+      
+      set explored? true
+      
+      ;print (word "inf_n: " cluster-current-node-infection)
+      ;print (word "diag_n: " cluster-current-node-diagnosis)
+      ;print (word "cluster-infection: " cluster-infection)
+      ;print (word "cluster-diagnosis: " cluster-diagnosis)
+
+      ;let temp-node who
+      ask Ttree-link-neighbors
+      [
+        set cluster-infection t-cluster-infection
+        set cluster-diagnosis t-cluster-diagnosis
+        set cluster-previous-node-aware t-cluster-previous-node-aware
+        set cluster-previous-node-diagnosis  t-cluster-previous-node-diagnosis
+        set cluster-previous-node-infection  t-cluster-previous-node-infection
+        
+        explore-cluster green
+        ;print (word "back to branch from node:" temp-node)
+      ]
+    ];; End of Diagnosis-within-time-window vs. Diagnosis-within-  
+  ];; end of green
+  
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;;; Codes specific for the starting nodes start here
+  if (new-color = gray)
+  [
+    set component-size component-size + 1
+    if (dead = 0) [set g-alive-cluster-size g-alive-cluster-size + 1]
+    if current-time - time-at-diagnosis <= intervention-threshold-time-window
+    [ set intervention-infection-counter intervention-infection-counter + 1]
+    
+    set g-relaxed-cluster-size g-relaxed-cluster-size + 1
+    if (dead = 0) [set g-relaxed-alive-cluster-size g-relaxed-alive-cluster-size + 1 ]
+    set g-cluster-size-with-undiagnosed g-cluster-size-with-undiagnosed + 1
+    
+    ;; Statistics to be updated after scanning the newtork for the second time
+    if cluster-size > 1
+    [
+      set cluster-counter cluster-counter + 1
+      set in-cluster? true
+      set relaxed-in-cluster? true
+      set cluster-id cluster-counter
+    ]
+    
+    ;; Statistics to be updated after scanning the newtork for the second time
+    if cluster-intervention-size >= intervention-threshold
+    [
+      set in-intervention-cluster? true
+      set intervention-cluster-counter intervention-cluster-counter + 1
+    ]
+    
+    set explored? true
+    
+    if count PTree-link-neighbors > 0
+    [
+      set color new-color
+      
+      ask PTree-link-neighbors
+      [explore-cluster blue]
+    ]
+  ]
+  ;; Codes meant for exploring the starting nodes end here
+  
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  
+  ;; Codes meant for exploring subsequent nodes start here
+  if (new-color = blue)
+  [
+    set color new-color
+    if counted? = false and
+    cluster-counter > 0 ;; so the statistics won't start until the second time
+    [
+      ;; Actions to be taken if two nodes are transmission-tree-linked
+      ;if (dead = 0) [set g-relaxed-cluster-size g-relaxed-cluster-size + 1]
+      set g-relaxed-cluster-size g-relaxed-cluster-size + 1
+      if (dead = 0) [set g-relaxed-alive-cluster-size g-relaxed-alive-cluster-size + 1]
+
+      set relaxed-in-cluster? true
+
+      if aware? = false and
+         dead = 0
+      [set g-relaxed-no-diagnosis-alive-counter g-relaxed-no-diagnosis-alive-counter + 1]
+
+      if current-time - time-at-infection <= acute-infection-period and
+         aware? = false and
+         dead = 0
+      [set g-acute-infection-relaxed-no-diagnosis-alive-counter g-acute-infection-relaxed-no-diagnosis-alive-counter + 1]
+
+      if current-time - time-at-infection > acute-infection-period and
+         current-time - time-at-infection <= recent-infection-period and
+         aware? = false and
+         dead = 0
+      [set g-early-infection-relaxed-no-diagnosis-alive-counter g-early-infection-relaxed-no-diagnosis-alive-counter + 1]
+
+      if infected? = true and
+         current-time - time-at-infection > recent-infection-period and
+         aware? = false and
+         dead = 0
+      [set g-chronic-infection-relaxed-no-diagnosis-alive-counter g-chronic-infection-relaxed-no-diagnosis-alive-counter + 1]
+    ]
+
+    if cluster-counter > 0 [set cluster-id cluster-counter set in-cluster? true]
+
+    ;; Statistics to be updated after scanning the newtork for the second time
+    if intervention-cluster-counter > 0
+    [set in-intervention-cluster? true]
+
+    if counted? = false and
+    cluster-counter > 0 ;; so the statistics won't start until the second time
+    [
+      if aware? = false and 
+         dead = 0
+      [set g-no-diagnosis-alive-counter g-no-diagnosis-alive-counter + 1]
+
+      if current-time - time-at-diagnosis <= early-diagnosis-period
+      [set g-early-diagnosis-counter g-early-diagnosis-counter + 1]
+
+      if current-time - time-at-infection <= acute-infection-period and
+         current-time - time-at-diagnosis <= early-diagnosis-period
+      [set g-acute-infection-early-diagnosis-counter g-acute-infection-early-diagnosis-counter + 1]
+
+      if current-time - time-at-infection > acute-infection-period and
+         current-time - time-at-infection <= recent-infection-period and
+         current-time - time-at-diagnosis <= early-diagnosis-period
+      [set g-early-infection-early-diagnosis-counter g-early-infection-early-diagnosis-counter + 1]
+
+      if infected? = true and
+         current-time - time-at-infection > recent-infection-period and
+         current-time - time-at-diagnosis <= early-diagnosis-period
+      [set g-chronic-infection-early-diagnosis-counter g-chronic-infection-early-diagnosis-counter + 1]
+
+      if current-time - time-at-infection <= acute-infection-period and
+         aware? = false and
+         dead = 0
+      [set g-acute-infection-no-diagnosis-alive-counter g-acute-infection-no-diagnosis-alive-counter + 1]
+
+      if current-time - time-at-infection > acute-infection-period and
+         current-time - time-at-infection <= recent-infection-period and
+         aware? = false and
+         dead = 0
+      [set g-early-infection-no-diagnosis-alive-counter g-early-infection-no-diagnosis-alive-counter + 1]
+
+      if infected? = true and
+         current-time - time-at-infection > recent-infection-period and
+         aware? = false and
+         dead = 0
+      [set g-chronic-infection-no-diagnosis-alive-counter g-chronic-infection-no-diagnosis-alive-counter + 1]
+
+      ifelse (current-time - time-at-infection <= acute-infection-period)
+      [set g-acute-infection-counter g-acute-infection-counter + 1]
+      [
+        ifelse (current-time - time-at-infection <= recent-infection-period)
+        [set g-early-infection-counter g-early-infection-counter + 1 ]
+        [set g-chronic-infection-counter g-chronic-infection-counter + 1]
+      ]
+    ]
+
+    if counted? = false
+    [
+      if current-time - time-at-diagnosis <= time-window [set component-size component-size + 1]
+      if dead = 0 [set g-alive-cluster-size g-alive-cluster-size + 1]
+
+      set g-cluster-size-with-undiagnosed g-cluster-size-with-undiagnosed + 1
+
+      if (aware? = true) and (current-time - time-at-diagnosis <= intervention-threshold-time-window)
+      [set intervention-infection-counter intervention-infection-counter + 1]
+    ]
+
+    set counted? true
+
+    set explored? true
+
+    ask PTree-link-neighbors
+    [
+      explore-cluster blue
+      ;print (word "back to branch from node:" temp-node)
+    ]
+  ]
+  
+end
+
+;; color the giant component orange
+to color-giant-component
+  
+  ask turtles [ set explored? false ]
+  set component-size 0
+  ask giant-start-node [explore-cluster yellow]
+  
+end
+
+
+
+;; color the nodes accordingly
+to color-intervention-cluster
+  
+  ask people with [aware? = true and time-at-diagnosis != 0 and (current-time - time-at-diagnosis ) > time-window]
+  [set color green ]
+  
+  ask people with [aware? = false]
+  [set color red]
+  
+  ask turtles 
+  [set explored? false]
+  
+  ask turtles with [worthy-start? = true] 
+  [set component-size 0 explore-cluster orange]
+
+end
+
+;;;;;;;;;;;;;;
+;;; Layout ;;;
+;;;;;;;;;;;;;;
+
+;; resize-nodes, change back and forth from size based on degree to a size of 1
+to layout
+  ;; the number 3 here is arbitrary; more repetitions slows down the
+  ;; model, but too few gives poor layouts
+  repeat 3 [
+    ;; the more turtles we have to fit into the same amount of space,
+    ;; the smaller the inputs to layout-spring we'll need to use
+    let factor sqrt count turtles
+    ;; numbers here are arbitrarily chosen for pleasing appearance
+    layout-spring turtles links (1 / factor) (7 / factor) (1 / factor)
+    display  ;; for smooth animation
+  ]
+  ;; don't bump the edges of the world
+  let x-offset max [xcor] of turtles + min [xcor] of turtles
+  let y-offset max [ycor] of turtles + min [ycor] of turtles
+  ;; big jumps look funny, so only adjust a little each time
+  set x-offset limit-magnitude x-offset 0.1
+  set y-offset limit-magnitude y-offset 0.1
+  ask turtles [ setxy (xcor - x-offset / 2) (ycor - y-offset / 2) ]
+end
+
+to-report limit-magnitude [number limit]
+  
+  if number > limit [ report limit ]
+  if number < (- limit) [ report (- limit) ]
+  report number
+  
+end
+
+
+; Copyright 2005 Uri Wilensky.
+; See Info tab for full copyright and license.

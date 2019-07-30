@@ -1,0 +1,1363 @@
+
+extensions[
+  nw
+  csv
+  matrix
+]
+
+
+;breed [infecteds infectedPeople]
+;breed [people person]
+breed [susceptibles susceptible]
+breed [non-agent-susceptibles NAsusceptible]
+
+undirected-link-breed [ECNA-links ECNA-link]
+
+links-own[
+  partner-month
+  active?
+  partnership-type ;1 is main, 2 is casual
+]
+
+turtles-own [
+  degree ;Degree or number of contacts, num-IDU-partner
+  clustering ;Clustering coefficient
+  number-exposures ;Number exposures at a time step, IDU-acts-monthly-counter
+  time-in-simulation ;Time turtles has been in the simulation
+  desired-degree
+  stage ;will get rid of the need for turtles with different breeds
+  time-of-infection
+  time-of-diagnosis
+  source-of-infection
+  ID
+  
+  ;behavior characteristic
+  partner-type ;0 - unassigned, 1 - main, 2 - casual, 3 - both
+  exposures-per-year
+  ;prop-acts-condom-protected
+]
+;people-own [ 
+;aware? ;Boolean, Is agents aware of their HIV positive status, aware?
+;time-discovered ;How long for agent to become diagnosed, age-Diag
+;time-infected ;At what point did the agent become infected, age-at-infection
+;  
+; degree ;Degree or number of contacts, num-IDU-partner
+;clustering ;Clustering coefficient
+;number-exposures ;Number exposures at a time step, IDU-acts-monthly-counter
+;time-in-simulation ;Time turtles has been in the simulation
+;desired-degree
+;stage ;will get rid of the need for turtles with different breeds
+;time-of-infection
+;time-of-diagnosis
+;source-of-infection
+;  ID
+;  partners-per-month
+;]
+
+susceptibles-own [
+  eligible? ;Boolean, Is this susceptible agent an eligible contact for all newly-infected turtle
+  used? ;Boolean, Is this susceptible agent used in ERGM
+  contacts? ;Does not influence results, measures the number of agents that could possibly get infected at a time-step
+  pot-triad? ;Delete, True if a newly infected agents could create a triad with this susceptible contact
+  
+  degree ;Degree or number of contacts, num-IDU-partner
+  clustering ;Clustering coefficient
+  number-exposures ;Number exposures at a time step, IDU-acts-monthly-counter
+  time-in-simulation ;Time turtles has been in the simulation
+  desired-degree
+  stage ;will get rid of the need for turtles with different breeds
+        ;time-of-infection
+        ;time-of-diagnosis
+  source-of-infection
+  ID  
+  partners-per-month
+  
+  ;dynamic partners/behavior
+  number-of-exposures
+  ;prop-acts-condom-protected
+  
+]
+
+globals [
+  trans-year-threshold
+  num-nodes
+  initial-infected
+  termination-node
+  proportion-recep
+  proportion-distributive-aware
+  proportion-distributive-unaware
+  alpha
+  reduction-factor
+  transmission-rate
+  lambda
+  initial-prop-infected
+  TimeToDiagnosis
+  ;;scale-free distribution parameters
+  degree-dist
+  degree-dist-Bin
+  exposures-per-month
+  degree-dist-all
+  degree-dist-Bin-all
+  ;;track susceptibles not agents in an array of degree distribution
+  susceptible-degree-dist
+  
+  num-exposed-sus ;Does not influence results, Maximum number of agents that could get infected at a timestep
+  num-new-contacts ;Could be modified, Number of contacts needed to evolve an agent's network
+  desired-neighbor-degree ;Could be modified, The number of contacts a neighbor of a newly infected agent should have
+  SF-Distribution ;Scale-free degree-degree distribution
+  avg-inf-degree ;Does not influence results, Average degree of newly infected agents
+  newly-infected-degree-list ;For DD correlation data collection, could be deleted
+  susceptible-contacts-degree-list ;For DD correlation data collection, could be deleted
+  conditional-degree-dist-list ;For DD correlation data collection, could be deleted
+  w  ;For NN
+  xNN  ;For NN
+  b1 ;For NN
+  b2 ;For NN
+  min_scale ;For NN
+  max_scale ;For NN
+  hidden_layer
+  input
+  max_degree
+  avg_degree
+  global_clustering_coefficient
+  proportion_infected
+  check_output
+  
+  ;for behaviour
+  exposure-dist
+  exposure-dist-max
+  exposure-dist-min
+  prop-acts-condom-protected
+  
+]
+
+to setup-ECNA-globals
+  set num-nodes 100000 ;1250000;100000;%1000000
+  ;set termination-node 0.0005 * num-nodes ;50
+  set termination-node 0.001 * num-nodes ;800
+                                          ;set termination-node 0.0005 * num-nodes ;50
+                                          ;set termination-node 0.008 * num-nodes ;800
+  set initial-prop-infected 0.0005
+  set initial-infected 5
+  set exposures-per-month 100 / 12
+  ;set transmission-rate 0.1
+  
+  ;;scale-free distribution parameters
+  ;;HET MALE
+  ;set lambda 2.16
+  ;set degree-dist matrix:from-row-list [[0 0.30298128	0.174716894	0.230644789	0.155303906	0.081580772	0.038594869	0.01617749]]
+  ;set degree-dist-Bin [0 1	2	4	8	16	32	64]; degree in each bin
+  
+  ;set degree-dist matrix:from-row-list [[0 0.301448609	0.173833065	0.229478041	0.15451828	0.081168085	0.038399632	0.016095654	0.005058634]]
+  ;set degree-dist-Bin [0 1	2	4	8	16	32	64	128]; degree in each bin
+  
+  ;set degree-dist matrix:from-row-list [[0 0.300964187	0.173553719	0.229109275	0.154269972	0.081037649	0.038337925	0.016069789	0.005050505	0.001606979]]
+  ;set degree-dist-Bin [0 1	2	4	8	16	32	64	128 256]; degree in each bin
+  ;;;;;;;;
+  
+  ;;;;;MSM 
+  set lambda 1.8 ;2.16;1.998
+  ;set degree-dist-all matrix:from-row-list [[0 0.213171933	0.153672548	0.212043496	0.173779237	0.125359048	0.071604432	0.030160033	0.011899877	0.005026672	0.002051703	0.001231022]]
+  ;set degree-dist-Bin-all [0 1	2	4	8	16	32	64	128 256 512 1024]; degree in each bin
+  
+   set degree-dist-all matrix:from-row-list [[0 0.6082	0.2010	0.1259	0.0465	0.0137	0.0038	0.0004 0.0003	]]
+  set degree-dist-Bin-all [0 1	2	4	8	16	32	64	128]; degree in each bin
+  
+;  set degree-dist-all matrix:from-row-list [[0 0.214958105	0.154960174	0.213820213	0.175235337	0.126409434	0.072204407	0.030412744	0.011999586]]
+ ; set degree-dist-Bin-all [0 1	2	4	8	16	32	64	128]; degree in each bin
+  
+  ;set degree-dist matrix:from-row-list [[0 0.213874022	0.154178674	0.212741869	0.174351585	0.125771923	0.071840263	0.030259366	0.01193907	0.005043228]]
+  ;set degree-dist-Bin [0 1	2	4	8	16	32	64	128 256]; degree in each bin
+  
+  ; set degree-dist matrix:from-row-list [[0 0.214958105	0.154960174	0.213820213	0.175235337	0.126409434	0.072204407	0.030412744	0.011999586]]
+  ; set degree-dist-Bin [0 1	2	4	8	16	32	64	128]; degree in each bin
+  
+  normalizeDegreeDist
+  scaleDegreeDistToPop
+end
+
+to normalizeDegreeDist
+;;NORMALIZE DEGREE DIST TO MAX DEGREE BINS
+  set degree-dist degree-dist-all
+  set degree-dist-Bin degree-dist-Bin-all 
+  let totalBins round(ln maxDegree / ln 2) 
+  
+  let i  totalBins + 2
+   repeat (length(degree-dist-Bin-all) - totalBins - 2)[
+    matrix:set degree-dist 0  i 0 
+    set degree-dist-Bin remove-item (length(degree-dist-Bin) - 1)  degree-dist-Bin 
+    set i i + 1
+  ]
+  
+  
+  set i 0
+  let denominator 0
+  repeat totalBins + 2[
+    set denominator denominator + matrix:get degree-dist 0  i
+    set i i + 1
+  ]
+  set degree-dist matrix:times-scalar degree-dist (1 / denominator)
+  print degree-dist
+  print degree-dist-Bin
+end
+
+to scaleDegreeDistToPop
+;;  scale disribution to population numbers
+  set susceptible-degree-dist matrix:times-scalar degree-dist num-nodes ;; determine number of persons in each bin
+  let i 0
+  while [i < length degree-dist-Bin][  
+    matrix:set susceptible-degree-dist 0 i round (matrix:get susceptible-degree-dist 0 i)
+    set i i + 1
+  ]
+   print degree-dist
+  print degree-dist-Bin
+  ; set TimeToDiagnosis 60; upper bound for diagnosis in months
+  
+  set proportion-recep 0
+  set proportion-distributive-aware 0 
+  set proportion-distributive-unaware 0
+  set alpha 0
+  set reduction-factor 0
+  
+end
+
+to clear
+  clear-all
+  file-close-all
+end
+
+to get-mats
+  ;let Scale-Free-Distribution csv:from-file "simulated_scale_free_dist_m5.csv" ;Theoretical scale-free distribution
+  ;set SF-Distribution matrix:from-row-list Scale-Free-Distribution ;Distribution as a matrix
+  
+  let w1 csv:from-file "/Neural Network Weights/w_pref_attach_l.csv"
+  set w matrix:from-row-list w1
+  
+  set xNN csv:from-file "/Neural Network Weights/x_pref_attach_l.csv"
+  set xNN matrix:from-row-list xNN
+  
+  set b1 csv:from-file "/Neural Network Weights/b1_pref_attach_l.csv"
+  set b1 matrix:from-row-list b1
+  
+  set b2 csv:from-file "/Neural Network Weights/b2_pref_attach_l.csv"
+  set b2 matrix:from-row-list b2
+  
+  set min_scale csv:from-file "/Neural Network Weights/min_pref_attach_l.csv"
+  set min_scale matrix:from-row-list min_scale
+  
+  set max_scale csv:from-file "/Neural Network Weights/max_pref_attach_l.csv"
+  set max_scale matrix:from-row-list max_scale
+  
+  set hidden_layer item 0 matrix:dimensions xNN
+  set input item 0 matrix:dimensions w
+end
+
+to-report return-random-degree
+  let numAgents sum matrix:get-row susceptible-degree-dist 0
+  let rand-degree random numAgents + 1
+  let i 1
+  let found false
+  let cumulative 0
+  while [i < (length degree-dist-Bin ) and found = false][
+    set cumulative cumulative + matrix:get susceptible-degree-dist 0 i
+    ; print cumulative
+    if rand-degree <= cumulative [
+      report item (i - 1) degree-dist-Bin + 1 + random (item (i) degree-dist-Bin - item (i - 1) degree-dist-Bin)
+      set found true
+      matrix:set susceptible-degree-dist 0 i ((matrix:get susceptible-degree-dist 0 i) - 1)
+    ]
+    set i i + 1
+    ;  print i
+  ]
+end
+to-report return-chosen-Bin [chosen-degree]
+  let numAgents sum matrix:get-row susceptible-degree-dist 0
+  let rand-degree random numAgents + 1
+  
+  let bin 0
+  let i 0
+  let found false
+  while [i < length degree-dist-Bin and found = false][
+    if chosen-degree <= item i degree-dist-Bin [
+      ; item i degree-dist-Bin + 1 + random (item (i + 1) degree-dist-Bin - item i degree-dist-Bin )
+      set bin i
+      set found true
+    ]
+    set i i + 1
+  ]
+  
+  set found false 
+  let chosen-bin 0
+  ifelse ( matrix:get susceptible-degree-dist 0 bin + count-susceptible-agents bin) < 1[
+    set i 1
+    let chosenInd 0
+    
+    while [found = false and i < length degree-dist-Bin][
+      let lower 0
+      let upper 0
+      carefully [set lower (matrix:get susceptible-degree-dist 0 bin - i) + count-susceptible-agents (bin - i)][set lower 0]
+      carefully [set upper (matrix:get susceptible-degree-dist 0 bin + i) + count-susceptible-agents (bin + i)][set upper 0]
+      ifelse random (lower + upper) + 1 <= lower [
+        set chosenInd bin - i
+      ]
+      [set chosenInd bin + i
+      ]
+      
+      if (lower != 0 or upper != 0)[
+        set found true
+        set chosen-bin chosenInd
+      ]
+      set i i + 1
+    ]
+  ]
+  [
+    set chosen-bin bin
+    set found true
+  ]
+  
+  report chosen-bin
+  
+end
+to-report count-susceptible-agents [bin]
+  let value 0
+  carefully [set value count susceptibles with [desired-degree > item (bin - 1) degree-dist-Bin and desired-degree <= item bin degree-dist-Bin and (desired-degree - count my-links) > 0]]
+  [set value 0]
+  report value
+end
+
+to setupECNA
+  clear
+  reset-ticks
+  file-close-all
+  
+  ; carefully [file-delete "TransmissionClusters.csv"] []
+  ; write-cluster-statistics-header
+  ; carefully [file-delete "TransmissionClustersShort.csv"] []
+  ; write-cluster-header-Short
+  
+  carefully [file-delete "ECNAdata.csv"][] 
+  get-mats ;Stores all matrices for NN
+  
+  initialize-output
+  setup-intermediate-globals
+  setup-static-globals
+  
+  set maxTicks sim-dry-run + num-year-trans * time-unit
+  set transmission-rate 0.005
+  set TimeToDiagnosis 10; upper bound for diagnosis in years
+  set giant-start-node person 0
+  
+  initialize-exposures ;in dynamicpartners.nls
+  setup-ECNA-globals
+  setup-ECNA-people
+end
+
+to setup-ECNA-people
+  create-non-agent-susceptibles (termination-node * 10)[
+  ]
+  ;  file-open "/degree-distribution/degree10000_m1_p18.csv"
+  ;   let degree-list csv:from-file "/degree-distribution/degree10000_m1_p18.csv"
+  ;  create-susceptibles (num-nodes) [
+  ;    set color green
+  ;   set time-in-simulation 0
+  ;   set breed susceptibles
+  ;    set desired-degree item 0 (item random length degree-list degree-list);file-read
+  ;  ]
+  
+  ;;take power law distribution samples from data
+  ;file-open "/degree-distribution/degree10000_m1_p18.csv"
+  ;   let i 0
+  ;while [not file-at-end?][
+  ;   ; repeat 10[
+  ;  ask susceptibles with [who = (i)] [
+  ;    set degree file-read
+  ;   ;   print degree
+  ;  ]
+  ;    set i i + 1
+  ;  ]
+  
+  
+  ;;; random number generator for power law distribution
+  ;  ask turtles [
+  ;    set degree ((degree-max ^ (lambda + 1) - degree-min ^ (lambda + 1)) * (random-float 1) + degree-min ^ (lambda + 1)) * 1 / (lambda + 1)
+  ;  ]
+  ;
+  
+  ;;cretaing random links and infections
+  ;ask n-of (initial-prop-infected * count turtles) turtles[
+  ; ask n-of (initial-infected ) turtles[
+  create-people initial-infected[
+    set color red
+    set time-infected -1 
+    set aware? false
+    set age 30 + random 30
+    set partner-type -1
+    initializeTrans
+    ;set-infected-variables
+    ; setDiagTime
+    
+    ; set time-discovered random 100
+    set desired-degree return-random-degree
+    
+    ;  set desired-degree random (item random  (item random length degree-list degree-list);file-read
+    setxy random-xcor random-ycor
+    set partners-per-month round (desired-degree / 12)
+    if partners-per-month < 1 [set partners-per-month 1]
+    ;print desired-degree
+    ; print partners-per-month
+    ;determine-non-eligible-modified 
+    layout-ECNA Ttree-links
+  ]
+  
+  
+  
+  ;;READING ADJACENCY MATRIX FOR 2 PERSOns
+  ;  let m csv:from-file "/adj_matrix/adj_mat10000_m1_p18-copy.csv"; row7 and 8 of adjacency matrix
+  ;  let mat matrix:from-row-list m
+  ;
+  ;  let sizex num-nodes - 1
+  ;  let j 0
+  ; while [j < (sizex + 1)] [
+  ;      let adj_val matrix:get mat 0 j
+  ;      if (adj_val = 1) [
+  ;        ask turtles with [who = (6)] [
+  ;
+  ;          create-link-with turtle (j)
+  ;         ]
+  ;      ]
+  ;    set j j + 1
+  ;  ]
+  
+  ; set j 0
+  ; while [j < (sizex + 1)] [
+  ;      let adj_val matrix:get mat 1 j
+  ;      if (adj_val = 1) [
+  ;        ask turtles with [who = (7)] [
+  ;          create-link-with turtle (j)
+  ;         ]
+  ;      ]
+  ;    set j j + 1
+  ;  ]
+  
+  
+  ;check-degree ;Calculates each turltes degree
+  ; set-desired-degree
+  ;check-cluster ;Calculates each turtles clustering coefficient
+  ; set avg_degree network-avg-degree
+  ; set global_clustering_coefficient infected-clustering-coefficient
+  
+  ; ask n-of (floor ((1 - initial-prop-infected) * num-nodes)) (infecteds) [ ;Randomly infect 'initial-infected' number of susceptible agents
+  ; ask infecteds with [ who != 6 and who != 7][
+  ;   set color green
+  ;   set time-in-simulation 0
+  ;   set breed susceptibles
+  ;  ]
+  
+  kill-not-needed-links ;Kills all links a agent with no infected contacts has
+  check-degree
+  ;check-cluster
+  
+  ;  ask infecteds[
+  ;  ; determine-non-eligible-modified 
+  ;  ] 
+  
+  ask people[
+    let sus-link link-neighbors with [breed = susceptibles]
+    ask sus-link
+    [set contacts? true]
+  ]
+  set num-exposed-sus count susceptibles with [contacts? = true]
+  
+  ;set max_degree max [desired-degree] of turtles;max_degree_agent
+  set max_degree last degree-dist-Bin 
+  
+end
+
+to check-degree ;Calculates the degree of each individual turtle
+  ask people[
+    set degree count (my-links)
+  ]
+  ask susceptibles[
+    set degree count (my-links)
+  ]
+end
+
+to set-desired-degree
+  ask people [
+    set desired-degree degree
+  ]
+  ask susceptibles [
+    set desired-degree degree
+  ]
+end
+
+to check-cluster ;Calculates the clustering-coefficient of each individual turtle
+  ask people[
+    let clustering-coef nw:clustering-coefficient
+    set clustering clustering-coef
+  ]
+  
+  ask susceptibles[
+    let clustering-coef nw:clustering-coefficient
+    set clustering clustering-coef
+  ]
+end
+
+to-report binomial [n p] ;Give a number of trials (n) and a probability (p) will compute an integer using a binomial distribution
+  let bin_ct 0 ;Initializing counting variable
+  repeat n [
+    if random-float 1 < p
+      [set bin_ct bin_ct + 1]
+  ]
+  report bin_ct  
+end
+;to writeECNA
+;   
+;    ask turtles with [breed = susceptibles][die]
+;   
+;  let n 0
+;  ask turtles with [ breed = susceptibles or breed = infecteds][
+;      set ID n
+;      set n n + 1
+;    ]
+;
+;    file-open "ECNAdata.csv"
+;      ask infecteds[
+;      file-write who;ID
+;      file-write time-of-infection
+;      file-write time-of-diagnosis
+;      let source 0
+;      let source-inf-ID source-of-infection
+;      ask infecteds with [who = source-inf-ID]
+;      [set source ID]
+;      file-write source
+;;      ask link-neighbors[
+;;        file-write who
+;;      ]
+;      file-print ""
+;    ]
+;    file-close
+;
+;    ;;WRITE MATRIX TO FILE
+;;    let mat matrix:make-constant count turtles count turtles 0
+;;    ask turtles[
+;;      let row-i ID
+;;      ask link-neighbors[
+;;        let col-j ID
+;;        matrix:set mat row-i col-j 1
+;;      ]
+;;    ]
+;;
+;;    file-open "adjacency-matrix.csv"
+;;    let row-i 0
+;;    while [row-i < count turtles][
+;;       let col-j 0
+;;       while [col-j < count turtles][
+;;        file-write matrix:get mat row-i col-j
+;;        set col-j col-j + 1
+;;      ]
+;;      file-print ""
+;;      set row-i row-i + 1
+;;    ]
+;;    file-close
+;    
+;end
+
+to goECNA
+  
+  
+  ;if (count infecteds >= (initial-infected + initial-susceptibles - 1) or num-exposed-sus = 0) [stop]
+  ;if (ticks >= termination-ticks) [
+  set total-people people with [dead = 0 and infected? = true]
+  
+  ask susceptibles [set contacts? false]
+  
+  if (ticks mod 12 = 0) [ 
+      reset-partnerships
+      assign-sexual-behavior ;needs to be assigned before transmission but after degrees have been set ;should be called every timestep? or it wont work?
+      calc-exposure-prob ;calculates partner-month of links yearly, as well as exposures per year for each node
+  ] 
+  
+  ; determine-num-exposures ;Determines the number of exposures per time step for all agents
+  infect-population-modified ;Determines if a susceptible agent will become infected ;number-exposures determined here
+  calc-prop-infected
+  determine-non-eligible-modified ;Determines which susceptible agents are not eligible to be linked with newly infected agents
+  check-degree ;Calculates each turltes degree
+               ;check-cluster ;Calculates each turtles clustering coefficient
+  
+  
+  calc-avg-inf-degree ;Calculates average degree of newly infected agents
+                      ; age-reset ;Updates turtles-own variables and global variables
+  reset ;Updates values
+        ;check-awareness ;Checked the healthcare statues of all infected agents
+  
+  ;;  PATH disease progression
+  manage-linkToCare
+  manage-ART-post2015
+  manage-dropOut-post2015
+  
+  
+  ask total-people[
+    update-simulation
+  ]
+  set num-exposed-sus 0
+  ask people[
+    let sus-link link-neighbors with [breed = susceptibles]
+    ask sus-link
+    [set contacts? true]
+  ]
+  set num-exposed-sus count susceptibles with [contacts? = true]
+  layout-ECNA ECNA-links
+end
+
+;to determine-num-exposures
+;  let agents-pop turtles ;Agent-set with all turtles
+;  let num-of-agents count turtles ;Number of turltes
+;  let s-recep binomial num-of-agents proportion-recep ;Binomially distributed integer with n = num-of-agents, p = proportion-recep
+;
+;  let agents-aware-pop infecteds with [aware? = true] ;Agent-set with turtles aware of their infected statues
+;  let num-of-agents-aware count agents-aware-pop ;Number of agents in this set
+;  let s-distributive-aware binomial num-of-agents-aware proportion-distributive-aware ;n = num-of-agents-aware, p = proportion-distributive-aware
+;  let selected-aware n-of s-distributive-aware agents-aware-pop
+;
+;  let agents-unaware-pop infecteds with [aware? = false] ;Agent-set with turltes unaware of their infected statues
+;  let num-of-agents-unaware count agents-unaware-pop ;Number of agents in this set
+;  let s-distributive-unaware binomial num-of-agents-unaware proportion-distributive-unaware ;n = num-of-agents-unaware, p = proportion-distributive-unaware
+;  let selected-unaware n-of s-distributive-unaware agents-unaware-pop
+;
+; repeat alpha * s-distributive-unaware [ ;Determines the number of agents exposed to dirty needle a time step from an agent unaware of thier infected statues
+;    ;let unaware-distributor one-of agents-unaware-pop ;Selects a random infected agent unaware of their infected statues
+;    let unaware-distributor one-of selected-unaware
+;    ifelse (unaware-distributor = nobody)[]
+;    [ask unaware-distributor[
+;    let receiver1 one-of link-neighbors ;Selects a random contact of aware-distributor
+;      ifelse (receiver1 = nobody) []
+;    [ask receiver1[
+;      set number-exposures number-exposures + 1 ;Increases their exposure number by one for that time step
+;      ]
+;    ]
+;    ]
+;  ]
+;  ]
+;
+;   repeat alpha * s-distributive-aware * (1 - reduction-factor) [ ;Determines the number of agents exposed to dirty needle a time step from an agent aware of thier infected statues
+;    ;let aware-distributor one-of agents-aware-pop ;Selects a random infected agent aware of their infected statues
+;    let aware-distributor one-of selected-aware
+;    ifelse (aware-distributor = nobody) []
+;    [ask aware-distributor[
+;    let receiver2 one-of link-neighbors ;Selects a random contact of aware-distributor
+;    ifelse (receiver2 = nobody) []
+;     [ask receiver2[
+;      set number-exposures number-exposures + 1 ;Increases their exposure number by one for that time step
+;      ]
+;    ]
+;    ]
+;    ]
+;  ]
+;end
+
+to infect-population-modified
+  ;   ask susceptibles[
+  ;    let prob-of-infection 1 - (1 - transmission-rate) ^ number-exposures ;Calculates susceptible agents probability of infection
+  ;    let random-float1 random-float 1
+  ;    if (prob-of-infection > random-float1) [ ;Infects susceptible agents using the binomial distribution
+  ;      set breed  infecteds
+  ;      set time-of-infection ticks
+  ;      set time-of-diagnosis ticks + 20 + random 20
+  ;      set color yellow
+  ;      set time-infected -1
+  ;      set aware? false
+  ;      set time-discovered random 100 
+  ;    ]
+  ;  ]
+  
+ 
+  ask people with [count link-neighbors with [breed = susceptibles] > 0][
+  
+    let infected-node who
+    
+    
+;   ;;;;SONZA     
+;    ask people with [who = infected-node] [ assign-month-num-exposures who ] ;determine number of exposures
+;    
+;  
+;;new transmission    
+;    let factor item stage [1 1 1 1 1 1 1];[1 5 1 0.46 0.46 0.46 0.04]
+;    let neighbor-links link-set [my-links] of turtle infected-node
+;    ask turtle infected-node[   ;can remove cuz already in procedure called ask infected-node?? idk if redundant or not
+;      ask neighbor-links with [active? = true][
+;        ifelse (partnership-type = 1)
+;        [set prop-acts-condom-protected 0.75] ;main
+;        [set prop-acts-condom-protected 0.25] ;casual
+;        ask other-end[
+;          if (breed = susceptibles)[
+;            ;print prop-acts-condom-protected
+;            ;print number-of-exposures
+;            let prob-of-infection 1 - (1 - transmission-rate * factor) ^ (number-of-exposures * (1 - prop-acts-condom-protected)) ;Calculates susceptible agents probability of infection ;condom effectiveness not yet taken into account
+;            let random-float1 random-float 1
+;            if (prob-of-infection > random-float1 and breed = susceptibles) [ ;Infects susceptible agents using the binomial distribution
+;              set source-of-infection infected-node
+;              set breed  people
+;              set age mean [age] of people
+;              initializeTrans
+;            ]
+;          ]
+;        ]
+;      ]
+;    ]   
+;  ;;;;;;;SONZA  
+
+    
+    let current-month ticks mod 12
+    let receivers turtle-set [other-end] of my-links with [partnership-type = 1 or partner-month = current-month]; n-of partners-per-month link-neighbors;Selects a random contact of aware-distributor
+    
+    if (count receivers > 0 ) [
+    ;  print receivers
+    ;  print count receivers
+      let exposures-per-partner exposures-per-month / count receivers;/ partners-per-month
+      let factor item stage [1 1 1 1 1 1 1];[1 5 1 0.46 0.46 0.46 0.04]
+      ask receivers[
+        ifelse ([partnership-type] of link-with turtle infected-node  = 1)
+        [set prop-acts-condom-protected 0.75] ;main
+        [set prop-acts-condom-protected 0.25] ;casual
+        let prob-of-infection 1 - (1 - transmission-rate * factor) ^ (exposures-per-partner * (1 - prop-acts-condom-protected)) ;Calculates susceptible agents probability of infection
+        let random-float1 random-float 1
+        if (prob-of-infection > random-float1 and breed = susceptibles) [ ;Infects susceptible agents using the binomial distribution
+          set source-of-infection infected-node
+          set breed  people
+          set age mean [age] of people
+          initializeTrans
+          
+        ]
+      ]
+    ]
+    
+  
+;;old transmission    
+;    let receivers n-of partners-per-month link-neighbors;Selects a random contact of aware-distributor
+;    let exposures-per-partner exposures-per-month / partners-per-month
+;    let factor item stage [1 1 1 1 1 1 1];[1 5 1 0.46 0.46 0.46 0.04]
+;    if (receivers != nobody ) [
+;      ask receivers[
+;        let prob-of-infection 1 - (1 - transmission-rate * factor) ^ (exposures-per-partner) ;Calculates susceptible agents probability of infection
+;        let random-float1 random-float 1
+;        if (prob-of-infection > random-float1 and breed = susceptibles) [ ;Infects susceptible agents using the binomial distribution
+;          set source-of-infection infected-node
+;          set breed  people
+;          set age mean [age] of people
+;          initializeTrans
+;          
+;        ]
+;      ]
+;    ]
+  ]
+  
+end
+to initializeTrans
+  
+    set time-of-infection ticks
+    set trans-year ceiling ((time-at-infection + 1) / time-unit)
+  
+  
+  set infected? true
+  
+  set sex 3
+  set-infected-variables
+  set index? false
+  set stage 1
+  setDiagTime
+  ; set time-discovered random 100
+  
+  
+  set partners-per-month round (desired-degree / 12)
+  if partners-per-month < 1 [set partners-per-month 1]
+  
+end
+
+
+to setDiagTime
+  let rand random-float 1
+  ;set time-of-diagnosis ticks + 6
+  ifelse rand < 0.25[;<0.7 years
+    set time-of-diagnosis round(ticks + random (0.7 * time-unit));TimeToDiagnosis
+  ]
+  [ifelse rand < 0.5[;0.7 to 3 years
+    set time-of-diagnosis round(ticks + 0.7 * time-unit + random (3 * time-unit - 0.7 * time-unit)); TimeToDiagnosis
+    ]
+    [
+      ifelse rand < 0.75[; 3 to 7.8 years
+        set time-of-diagnosis round(ticks + 3 * time-unit + random (7.8 * time-unit - 3 * time-unit));TimeToDiagnosis
+      ]
+      [;7.8 to TimeToDiagnosis 
+        set time-of-diagnosis round(ticks + 7.8 * time-unit + random (TimeToDiagnosis * time-unit - 7.8 * time-unit)); 
+      ]
+      
+    ]
+  ]
+  
+  set next-test time-of-diagnosis
+  
+  set color red
+  set label time-at-infection
+  set time-infected -1
+  set aware? false
+end
+
+
+to calc-prop-infected
+  let num-inf count people
+  set proportion_infected (num-inf / num-nodes) * 100
+end
+
+
+to determine-non-eligible-modified
+  
+  ;  ask susceptibles [set used? false ;reset all values
+  ;  set eligible? true
+  ;  set pot-triad? false]
+  
+  ask people with [time-infected = -1 and desired-degree > 0] [ ;Susceptibles of the infected contacts of the newly infected agents are not eligible contacts
+    set num-new-contacts 0
+    
+    ;pull from prob distribution (CDF) to determine degree
+    let degree-of-newly-infected desired-degree
+    let my_output calculate-dist-NN degree-of-newly-infected max_degree lambda avg_degree proportion_infected max_scale min_scale ;global_clustering_coefficient
+    set check_output my_output
+    let low-bound 0
+    let high-bound matrix:get my_output 0 0
+    
+    set num-new-contacts desired-degree - count (my-links) ;The desired degree minus the current degree to determine number of links needed
+                                                           ;print num-new-contacts
+    let j 0
+    while [j < num-new-contacts][
+      let new-contacts nobody
+      let desired-neighbor-degree1 desired-neighbor-degree-calc my_output low-bound high-bound
+      let chosen-bin return-chosen-bin desired-neighbor-degree1
+      
+      if chosen-bin > 0[
+        let eligible-agents  count-susceptible-agents (chosen-bin) 
+        let eligible-nonagents matrix:get susceptible-degree-dist 0 chosen-bin
+        
+        
+        if eligible-agents + eligible-nonagents > 0[
+          ifelse random (eligible-agents + eligible-nonagents) + 1 <= eligible-agents[
+            set new-contacts one-of susceptibles with [desired-degree > item (chosen-bin - 1) degree-dist-Bin and desired-degree <= item chosen-bin degree-dist-Bin and (desired-degree - count my-links) > 0]
+          ]
+          [
+            matrix:set susceptible-degree-dist 0 chosen-bin ((matrix:get susceptible-degree-dist 0 chosen-bin) - 1)
+            set new-contacts one-of non-agent-susceptibles
+            ask new-contacts[
+              set breed susceptibles
+              set desired-degree item (chosen-bin - 1) degree-dist-Bin + 1 + random (item (chosen-bin) degree-dist-Bin - item (chosen-bin - 1) degree-dist-Bin)
+              set partners-per-month round (desired-degree / 12)
+              if partners-per-month < 1 [set partners-per-month 1]
+              
+              set color green
+              set time-in-simulation 0
+            ]
+            
+          ]
+          
+        ]
+      ]
+      
+      ;      set new-contacts one-of susceptibles with [desired-degree = desired-neighbor-degree1 and (desired-degree - count (my-links)) > 0 ]
+      ;      if (new-contacts = nobody)[
+      ;        let eligible-contacts susceptibles with [ (desired-degree - count (my-links)) > 0 ]
+      ;        set eligible-contacts sort-on [abs(desired-degree - desired-neighbor-degree1)] eligible-contacts
+      ;        if length (eligible-contacts)> 0 [set new-contacts item 0 eligible-contacts]
+      ;        ;print "lenth eligible-contacts"
+      ;       ; print length(eligible-contacts)
+      ;      ]
+      ;    ;  print "new-contact"
+      ; print new-contacts
+      if (new-contacts != nobody) [
+        create-ECNA-link-with new-contacts
+      ]
+      set j j + 1
+    ]
+  ]
+  
+  ;   ask susceptibles [set used? false
+  ;   set eligible? true
+  ;   set pot-triad? false]
+  
+end
+
+to-report desired-neighbor-degree-calc [output_vector lb hb]
+  let i 0
+  let val random-float 1
+  set desired-neighbor-degree 0
+  while [ i < max_degree - 1] [ ;Draw from the theoretical distribution to determine the degree of the newly infected agent
+    ifelse (val > lb) and (val < hb) [
+      set desired-neighbor-degree i + 1
+      set i i + 1
+      set lb matrix:get output_vector (i - 1) (0)
+      set hb matrix:get output_vector i (0)]
+    
+    [set i i + 1
+      set lb matrix:get output_vector (i - 1) (0)
+      set hb matrix:get output_vector i (0)]
+  ]
+  report desired-neighbor-degree
+end
+
+to-report calculate-dist-NN [node_degree maximum_degree network_lambda network_degree prop_inf maximum_scale minimum_scale] ; cluster_coef
+  let output matrix:make-constant 1 max_degree matrix:get b2 0 0
+  
+  let j 0
+  while [j < maximum_degree][       ;run for every neighbor degree (jth col)
+    let h 0
+    let mu (list node_degree (j + 1) network_lambda network_degree prop_inf) ;cluster_coef
+                                                                             ;scale mu using (Input-min)/(max-min)
+    let k 0
+    while [k < length(mu)][
+      set mu replace-item k mu ((item k mu - matrix:get minimum_scale 0 k) / (matrix:get maximum_scale 0 k - matrix:get minimum_scale 0 k))
+      set k k + 1
+    ]
+    
+    let v*h matrix:copy b1
+    
+    let v_h matrix:make-constant 1 hidden_layer 0
+    
+    while [h < hidden_layer][ ;run for every hidden network node (h=1:8)
+                              ;summation of w(i,h)*mu(i) for every input (i=1:6) and add bias b1(h) [v*h]
+                              ;mu(i) is the variable inpt corresponding to hidden layer node i
+                              ;bias 1, b1(h) corresponds to every hidden layer node
+      let i 0
+      while [i < input][
+        matrix:set v*h h 0 (matrix:get v*h h 0 + matrix:get w i h * item i mu)
+        set i i + 1
+      ]
+      
+      ;Apply activation function [v(h)]
+      ;1/(1+e^-v*h)
+      if matrix:get v*h h 0 <= 0[
+        carefully [matrix:set v_h 0 h (1 / (1 + e ^ (- matrix:get v*h h 0)))] [matrix:set v_h 0 h 0]]
+      if matrix:get v*h h 0 > 0[
+        carefully [matrix:set v_h 0 h (1 / (1 + e ^ (- matrix:get v*h h 0)))] [matrix:set v_h 0 h 1]]
+      ;summation of x(h)v(h) for every value of h (h=1:8) and add bias b2 [o]
+      ;bias 2, b2, corresponds to the output
+      ;store output in the jth col of vecotr
+      
+      matrix:set output 0 j  matrix:get output 0 j + matrix:get xNN h 0 * matrix:get v_h 0 h
+      
+      set h h + 1
+    ]
+    
+    set j j + 1
+  ]
+  
+  ;unscale output using output*(max-min)+min
+  
+  let k 0
+  while [k < maximum_degree][
+    matrix:set output 0 k (matrix:get output 0 k * (matrix:get maximum_scale 0 5 - matrix:get minimum_scale 0 5) + matrix:get minimum_scale 0 5)
+    set k k + 1
+  ]
+  
+  
+  ; (normalize probabilities)
+  let d 0
+  let stopper 0
+  let entry 0
+  while [d < maximum_degree][
+    set entry matrix:get output 0 d
+    if entry < 0 [
+      matrix:set output 0 d 0.00001]
+    set d d + 1
+  ]
+  
+  
+  let row_sum 0
+  let c 0
+  while [c < maximum_degree][
+    set row_sum row_sum + matrix:get output 0 c
+    ;matrix:set output 0 c matrix:get output 0 c / sum item 0 matrix:to-row-list output
+    set c c + 1
+  ]
+  set output output matrix:* (1 / row_sum)
+  
+  
+  let m 0
+  let mat_sum 0
+  let output_cdf matrix:make-constant 1 max_degree 0
+  
+  while [m < maximum_degree][
+    set mat_sum mat_sum + matrix:get output 0 m
+    matrix:set output_cdf 0 m mat_sum
+    set m m + 1
+  ]
+  
+  
+  set output_cdf matrix:transpose output_cdf
+  report output_cdf
+  ;report output
+end
+
+to calc-avg-inf-degree ;Calculates the average newly infected degree, does not influence model results
+  set avg-inf-degree 0
+  let total-links 0
+  ask people with [time-infected = -1][
+    set total-links total-links + degree
+  ]
+  if (count people with [time-infected = -1]) = 0 [stop]
+  set avg-inf-degree (total-links / (count people with [time-infected = -1]))
+end
+
+to-report avg-inf-degree1 ;Reports the average degree of newly infected agents, does not influence model results
+  let avg-degree-val avg-inf-degree
+  report avg-degree-val
+end
+
+;to age-reset ;Reset turtle-own varibales
+;;  ask turtles [
+;;    set time-in-simulation time-in-simulation + 1
+;;    set number-exposures 0
+;;  ]
+;  ask people [
+;     set time-in-simulation time-in-simulation + 1
+;    set number-exposures 0
+;    set time-infected time-infected + 1
+;  ]
+;  ask susceptibles [
+;     set time-in-simulation time-in-simulation + 1
+;    set number-exposures 0
+;    set eligible? true
+;    set used? false
+;  ]
+;end
+
+;to check-awareness ;Update healthcare status
+;  ask infecteds [
+;  set time-discovered time-discovered - 1
+;  if (time-discovered <= 0)
+;    [set aware? true]
+;  ]
+;end
+
+to kill-not-needed-links ;Kills links attached to agents with no infected contacts
+  ask susceptibles[
+    let my-contacts link-neighbors
+    let my-contacts-links my-links
+    if all? my-contacts [breed = susceptibles] [
+      ask my-contacts-links [
+        die
+      ]
+    ]
+  ]
+  
+end
+
+to kill-degree-zero-susceptibles ;Kills agents with no links
+  ask susceptibles with [degree = 0] [
+    die
+  ]
+end
+
+to-report global-clustering-coefficient ;Calculate global clustering coefficient
+  let closed-triplets sum [ nw:clustering-coefficient * count my-links * (count my-links - 1) ] of turtles
+  let triplets sum [ count my-links * (count my-links - 1) ] of turtles
+  report closed-triplets / triplets
+end
+
+to-report infected-clustering-coefficient
+  let sum-cc 0
+  ask people[
+    set sum-cc sum-cc + clustering
+  ]
+  
+  report sum-cc / (count people)
+end
+
+to-report global-degree ;Calculate average global degree
+  
+  let total-links sum [degree] of people
+  let total-turtles count people
+  
+  report (total-links) / total-turtles
+end
+
+to-report network-avg-degree
+  let total-links sum [degree] of turtles
+  let total-turtles count turtles
+  report total-links / total-turtles
+end
+
+to reset ;Reset turtle-own varibales
+  
+  ask people [
+    set time-infected time-infected + 1
+    ; set time-in-simulation time-in-simulation + 1
+    ;set number-exposures 0
+  ]
+  ask susceptibles [
+    ;set eligible? true
+    set used? false
+    ; set time-in-simulation time-in-simulation + 1
+    ;  set number-exposures 0
+  ]
+ 
+end
+
+to reset-partnerships
+  ask people[
+    set partner-type -1
+  ]
+   ask links[
+    set partnership-type -1
+    set active? false
+    set partner-month -1
+  ]
+  
+end
+
+
+;;Not part of ECNA
+;to setup-scale-free
+;  clear-all
+;  reset-ticks
+;  set newly-infected-degree-list []
+;  set susceptible-contacts-degree-list []
+;  set conditional-degree-dist-list []
+;;
+;;   create-susceptibles (num-nodes) [ ;All initial turtles
+;;   set color green
+;;   setxy random-xcor random-ycor
+;;   set degree 0
+;;   set time-in-simulation 0
+;;  ]
+;;
+;;  let m csv:from-file "C:/Users/Prof. Chaitra Lab/Desktop/Netlogo Model & Data/Cond Degree Dist/adj_mat1000_d10t5_giant.csv"
+;;  let mat matrix:from-row-list m
+;;  let sizex num-nodes - 1
+;;  let i 0
+;;  let j 1
+;;  repeat (sizex) [
+;;    while [j < (sizex + 1)] [
+;;      let adj_val matrix:get mat i j
+;;      if (adj_val = 1) [
+;;        ask turtles with [who = (i)] [
+;;          create-link-with turtle (j)
+;;         ]
+;;      ]
+;;      set j j + 1
+;;    ]
+;;   set i i + 1
+;;   set j i + 1
+;;  ]
+;;
+;;   check-degree
+;;
+;;   ask n-of (floor (initial-prop-infected * num-nodes)) (susceptibles) [ ;Randomly infect 'initial-infected' number of remaining agents
+;;      set color yellow
+;;      set breed infecteds
+;;      set time-infected 0
+;;      set aware? false
+;;      set time-discovered random 100
+;;  ]
+;
+;     create-infecteds (num-nodes) [ ;All initial turtles
+;   set color yellow
+;   set time-infected 0
+;   set aware? false
+;   set time-discovered random 100
+;   set degree 0
+;   setxy random-xcor random-ycor
+;  ]
+;
+;  let m csv:from-file "/adj_matrix/adj_mat1000_m2_p179.csv"
+;  let mat matrix:from-row-list m
+;  let sizex num-nodes - 1
+;  let i 0
+;  let j 1
+;  repeat (sizex) [
+;    while [j < (sizex + 1)] [
+;      let adj_val matrix:get mat i j
+;      if (adj_val = 1) [
+;        ask turtles with [who = (i)] [
+;          create-ECNA-link-with turtle (j)
+;         ]
+;      ]
+;      set j j + 1
+;    ]
+;   set i i + 1
+;   set j i + 1
+;  ]
+;
+; check-degree ;Calculates each turltes degree
+; set-desired-degree
+; check-cluster ;Calculates each turtles clustering coefficient
+; set avg_degree network-avg-degree
+; set global_clustering_coefficient infected-clustering-coefficient
+;
+; ask n-of (floor ((1 - initial-prop-infected) * num-nodes)) (infecteds) [ ;Randomly infect 'initial-infected' number of susceptible agents
+;   set color green
+;   set time-in-simulation 0
+;   set breed susceptibles
+;  ]
+;
+;
+;
+;
+;
+;  check-degree ;Calculates each turltes degree
+;  check-cluster ;Calculates each turtles clustering coefficient
+;
+;    ask infecteds[
+;    let sus-link link-neighbors with [breed = susceptibles]
+;    ask sus-link
+;    [set contacts? true]
+;  ]
+; set num-exposed-sus count susceptibles with [contacts? = true]
+;;  nw:set-context turtles links
+;;  nw:save-matrix "scalefree01"
+;
+;
+;end
+;
+;;Not part of ECNA
+;to run-abnm
+;  tick
+;  ask susceptibles [set contacts? false]
+;  ;if (count infecteds >= 1050 or num-exposed-sus = 0) [stop]
+;;  if (num-exposed-sus = 0) [
+;;    set conditional-degree-dist-list lput newly-infected-degree-list conditional-degree-dist-list
+;;    set conditional-degree-dist-list lput susceptible-contacts-degree-list conditional-degree-dist-list
+;;    csv:to-file "cond_degree_dist2_m1.csv" conditional-degree-dist-list
+;;    stop]
+; ; if (ticks >= termination-ticks) [stop]
+;   if (count infecteds >= 500) [
+;   ;  ask turtles with [breed = susceptibles][die]
+;    file-open "ECNAdata.csv"
+;    let n 0
+;    ask turtles with [breed = infecteds][
+;      file-write who
+;      file-write time-of-infection
+;      file-write time-of-diagnosis
+;      file-write source-of-infection
+;;      ask link-neighbors[
+;;        file-write who
+;;      ]
+;      file-print ""
+;    ]
+;
+;    file-close
+;
+;    stop]
+; ; determine-num-exposures ;Determines the number of exposures per time step for all agents
+;  infect-population-modified ;Determines if a susceptible agent will become infected
+;  conditional-degree-dist
+;  calc-avg-inf-degree
+;  reset
+;  check-awareness ;Checked the healthcare statues of all infected agents
+;  check-degree ;Calculates each turltes degree
+;  check-cluster ;Calculates each turtles clustering coefficient
+;
+;  ask infecteds[
+;    let sus-link link-neighbors with [breed = susceptibles]
+;    ask sus-link
+;    [set contacts? true]
+;  ]
+;  set num-exposed-sus count susceptibles with [contacts? = true]
+;end
+;
+;;Not part of ECNA
+;to conditional-degree-dist
+;  ask infecteds with [time-infected = -1] [
+;    let sus-contacts link-neighbors with [breed = susceptibles]
+;    let num-sus-contacts count sus-contacts
+;
+;    repeat num-sus-contacts [
+;      set newly-infected-degree-list lput degree newly-infected-degree-list
+;   ]
+;
+;   ask n-of num-sus-contacts sus-contacts [
+;     set susceptible-contacts-degree-list lput degree susceptible-contacts-degree-list
+;    ]
+;
+;  ]
+;end
+
+
+to-report global-degree-susc ;Calculate average global degree of susceptibles (note: this degree is not equal to desired degree)
+  
+  
+  let total-links 0
+  let total-turtles  0
+  ask susceptibles[
+    if count link-neighbors with [breed = people] > 0 [
+      set total-links  total-links  + count  link-neighbors with [breed = people]
+      set total-turtles total-turtles + 1
+    ]
+  ]
+  
+  ifelse total-turtles = 0
+  [report 0]
+  [report (total-links) / total-turtles
+  ]
+  
+end
+
+
+to-report median-degree
+  let med-degree median [degree] of people
+  report med-degree
+end
+
+to-report variance-degree
+  let var-degree variance [degree] of people
+  report var-degree
+end
+
+
+to-report median-degree-susc
+  let med-degree median [count  link-neighbors with [breed = people]] of susceptibles with [count link-neighbors with [breed = people] > 0]
+  report med-degree
+end
+
+to-report variance-degree-susc
+  let var-degree variance [count  link-neighbors with [breed = people]] of susceptibles with [count link-neighbors with [breed = people] > 0]
+  report var-degree
+end
+
+to layout-ECNA [breed-links]
+  ;; the number 3 here is arbitrary; more repetitions slows down the
+  ;; model, but too few gives poor layouts
+  let agentset (turtle-set people susceptibles)
+  repeat 3 [
+    ;; the more turtles we have to fit into the same amount of space,
+    ;; the smaller the inputs to layout-spring we'll need to use
+    let factor sqrt count agentset
+    ;; numbers here are arbitrarily chosen for pleasing appearance
+    layout-spring agentset breed-links (1 / factor) (7 / factor) (1 / factor)
+    display  ;; for smooth animation
+  ]
+  ;; don't bump the edges of the world
+  let x-offset max [xcor] of agentset + min [xcor] of agentset
+  let y-offset max [ycor] of agentset + min [ycor] of agentset
+  ;; big jumps look funny, so only adjust a little each time
+  set x-offset limit-magnitude x-offset 0.1
+  set y-offset limit-magnitude y-offset 0.1
+  ask agentset [ setxy (xcor - x-offset / 2) (ycor - y-offset / 2) ]
+  if count Ptree-links > 0 [ ask Ttree-links [set thickness 0.5]]
+;  if breed-links = Ptree-links [ ask Ptree-links [set thickness 0.2] ask Ttree-links [set thickness 1]]
+end
+
+to stageColor
+  ask people[
+    if stage = 1 [set shape "die 1" ]
+    if stage = 2 [set shape "die 2"]
+    if stage = 3 [set shape "die 3"]
+    if stage = 4 [set shape "die 4"]
+    if stage = 5 [set shape "die 5"]
+    if stage = 6 [set shape "die 6"]
+    if stage > 2 [set color blue]
+    
+    let l []
+    set l lput time-at-infection l 
+    set l lput time-at-diagnosis l 
+    set label l
+  ]
+  
+end

@@ -1,0 +1,123 @@
+to initialize-network-counters
+  
+  set early-diagnosis-counter  0
+  set no-diagnosis-alive-counter 0
+  set relaxed-no-diagnosis-alive-counter 0
+  
+  set early-infection-counter 0
+  set acute-infection-counter 0
+  set chronic-infection-counter 0
+  
+  set early-infection-early-diagnosis-counter 0
+  set acute-infection-early-diagnosis-counter 0
+  set chronic-infection-early-diagnosis-counter 0
+  
+  set early-infection-no-diagnosis-alive-counter 0
+  set acute-infection-no-diagnosis-alive-counter 0
+  set chronic-infection-no-diagnosis-alive-counter 0
+  
+  set early-infection-relaxed-no-diagnosis-alive-counter 0
+  set acute-infection-relaxed-no-diagnosis-alive-counter 0
+  set chronic-infection-relaxed-no-diagnosis-alive-counter 0
+  
+end
+
+to reset-cluster-globals
+  
+  set component-size 0
+  set g-alive-cluster-size 0
+  set g-relaxed-alive-cluster-size 0
+  set g-relaxed-cluster-size 0
+  set intervention-infection-counter 0
+  set g-cluster-size-with-undiagnosed 0
+  
+  set g-early-diagnosis-counter 0
+  set g-no-diagnosis-alive-counter 0
+  set g-relaxed-no-diagnosis-alive-counter 0
+  
+  set g-early-infection-counter 0
+  set g-acute-infection-counter 0
+  set g-chronic-infection-counter 0
+  
+  set g-early-infection-early-diagnosis-counter 0
+  set g-acute-infection-early-diagnosis-counter 0
+  set g-chronic-infection-early-diagnosis-counter 0
+  
+  set g-early-infection-no-diagnosis-alive-counter 0
+  set g-acute-infection-no-diagnosis-alive-counter 0
+  set g-chronic-infection-no-diagnosis-alive-counter 0
+  
+  set g-early-infection-relaxed-no-diagnosis-alive-counter 0
+  set g-acute-infection-relaxed-no-diagnosis-alive-counter 0
+  set g-chronic-infection-relaxed-no-diagnosis-alive-counter 0
+  
+  set cluster-diagnosis 0 ;; diag_N
+  set cluster-infection 0 ;; inf_N
+  
+end
+
+to update-cluster-globals
+  
+  set cluster-size component-size
+  set cluster-intervention-size intervention-infection-counter
+  set alive-cluster-size g-alive-cluster-size
+  set relaxed-cluster-size g-relaxed-cluster-size
+  set relaxed-alive-cluster-size g-relaxed-alive-cluster-size
+  set cluster-size-with-undiagnosed g-cluster-size-with-undiagnosed
+
+  ifelse current-time - time-at-diagnosis <= early-diagnosis-period
+  [set early-diagnosis-counter g-early-diagnosis-counter + 1];; including the starting node iteself
+  [set early-diagnosis-counter g-early-diagnosis-counter]
+  
+  set no-diagnosis-alive-counter g-no-diagnosis-alive-counter
+  set relaxed-no-diagnosis-alive-counter g-relaxed-no-diagnosis-alive-counter
+
+  ifelse current-time - time-at-infection <= recent-infection-period and
+         current-time - time-at-infection > acute-infection-period
+  [set early-infection-counter g-early-infection-counter + 1]
+  [set early-infection-counter g-early-infection-counter]
+
+  ifelse current-time - time-at-infection <= acute-infection-period
+  [set acute-infection-counter g-acute-infection-counter + 1]
+  [set acute-infection-counter g-acute-infection-counter]
+
+  ifelse current-time - time-at-infection > recent-infection-period
+  [set chronic-infection-counter g-chronic-infection-counter + 1]
+  [set chronic-infection-counter g-chronic-infection-counter]
+        
+  ifelse current-time - time-at-infection <= recent-infection-period and
+         current-time - time-at-infection > acute-infection-period and
+         current-time - time-at-diagnosis <= early-diagnosis-period
+  [set early-infection-early-diagnosis-counter g-early-infection-early-diagnosis-counter + 1]
+  [set early-infection-early-diagnosis-counter g-early-infection-early-diagnosis-counter]
+  
+  ifelse current-time - time-at-infection <= acute-infection-period and
+         current-time - time-at-diagnosis <= early-diagnosis-period
+  [set acute-infection-early-diagnosis-counter g-acute-infection-early-diagnosis-counter + 1]
+  [set acute-infection-early-diagnosis-counter g-acute-infection-early-diagnosis-counter]
+
+  ifelse current-time - time-at-infection > recent-infection-period and
+         current-time - time-at-diagnosis <= early-diagnosis-period
+  [set chronic-infection-early-diagnosis-counter g-chronic-infection-early-diagnosis-counter + 1]
+  [set chronic-infection-early-diagnosis-counter g-chronic-infection-early-diagnosis-counter]
+  
+  set early-infection-no-diagnosis-alive-counter g-early-infection-no-diagnosis-alive-counter
+  set acute-infection-no-diagnosis-alive-counter g-acute-infection-no-diagnosis-alive-counter
+  set chronic-infection-no-diagnosis-alive-counter g-chronic-infection-no-diagnosis-alive-counter
+  
+  set early-infection-relaxed-no-diagnosis-alive-counter g-early-infection-relaxed-no-diagnosis-alive-counter
+  set acute-infection-relaxed-no-diagnosis-alive-counter g-acute-infection-relaxed-no-diagnosis-alive-counter
+  set chronic-infection-relaxed-no-diagnosis-alive-counter g-chronic-infection-relaxed-no-diagnosis-alive-counter
+  
+end
+
+to initialize-current-node
+  
+  let cluster-current-node-aware aware? ; diag_n
+                                          ;;; modify cluster-current-node-aware to reflect the position within or outside time-window
+    
+  let cluster-current-node-infection time-at-infection ; inf_n
+  let cluster-current-node-diagnosis time-at-diagnosis; diag_n
+  let cluster-current-arc-infection 0; inf_N,n
+  
+end

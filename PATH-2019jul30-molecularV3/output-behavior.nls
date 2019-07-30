@@ -1,0 +1,142 @@
+to write-partnership-behavior-header
+  
+  file-open "PartnershipBehavior.csv"
+  
+;  file-write "degree distribution"
+;  file-write "Total Nodes"
+;  file-write "Number of nodes infected(stopping condition)"
+;  file-write "Max degree bin"
+;  file-write "Max time to diagnosis from time of infection (min time is 3) in months"
+;  file-write "Evolution-time window"
+;  file-write "Transmission Rate"
+  
+  file-write "Current-Month (Ticks)"
+  file-write "Total infected"
+  file-write "Total infected and alive"
+  
+  file-write "Proportion of Main Nodes"
+  file-write "Proportion of Main+Casual Nodes"
+  file-write "Proportion of Casual Nodes"
+  
+  file-write "Avg Degree of Main Nodes"
+  file-write "Avg Degree of Main+Casual Nodes"
+  file-write "Avg Degree of Casual Nodes"
+  
+  file-write "For Main Nodes"
+  file-write "Avg Num of Main Links"
+  file-write "Avg Num of Casual Links"
+  
+  file-write "For Main+Casual Nodes"
+  file-write "Avg Num of Main Links"
+  file-write "Avg Num of Casual Links"
+  
+  file-write "For Casual Nodes"
+  file-write "Avg Num of Main Links"
+  file-write "Avg Num of Casual Links"
+  
+  file-write "For Main Nodes"
+  file-write "Avg Num of Active Main Links"
+  file-write "Avg Num of Active Casual Links"
+  
+  file-write "For Main+Casual Nodes"
+  file-write "Avg Num of Active Main Links"
+  file-write "Avg Num of Active Casual Links"
+  
+  file-write "For Casual Nodes"
+  file-write "Avg Num of Active Main Links"
+  file-write "Avg Num of Active Casual Links"
+  
+  file-print ""
+  file-close
+end
+
+to write-partnership-behavior-output
+  
+  file-open "PartnershipBehavior.csv"
+  
+  let people-2006 people ;with [trans-year >= trans-year-threshold];16]
+  
+;  file-write "MSM"
+;  file-write num-nodes
+;  file-write termination-node
+;  file-write last(degree-dist-Bin)
+;  file-write TimeToDiagnosis * time-unit
+;  file-write evolution-time-window
+;  file-write transmission-rate
+  
+  file-write ticks
+  let infected-total count people-2006 with [infected? = true]
+  file-write infected-total
+  file-write count people-2006 with [infected? = true and dead = 0]
+  
+  let main-nodes max list 1 count people-2006 with [partner-type = 1]
+  let main-casual-nodes max list 1 count people-2006 with [partner-type = 3]
+  let casual-nodes max list 1 count people-2006 with [partner-type = 2]
+  
+  file-write main-nodes / infected-total
+  file-write main-casual-nodes / infected-total
+  file-write casual-nodes / infected-total
+  
+  file-write sum [degree] of people-2006 with [partner-type = 1] / main-nodes
+  file-write sum [degree] of people-2006 with [partner-type = 3] / main-casual-nodes
+  file-write sum [degree] of people-2006 with [partner-type = 2] / casual-nodes
+  
+  
+  file-write "For Main Nodes"
+  let total1 0
+  let total2 0
+  ask people-2006 with [partner-type = 1][
+   set total1 total1 + count my-links with [partnership-type = 1]
+   set total2 total2 + count my-links with [partnership-type = 2]]
+  file-write total1 / main-nodes
+  file-write total2 / main-nodes
+  
+  file-write "For Main+Casual Nodes"
+  set total1 0
+  set total2 0
+  ask people-2006 with [partner-type = 3][
+   set total1 total1 + count my-links with [partnership-type = 1]
+   set total2 total2 + count my-links with [partnership-type = 2]]
+  file-write total1 / main-casual-nodes
+  file-write total2 / main-casual-nodes
+  
+  file-write "For Casual Nodes"
+  set total1 0
+  set total2 0
+  ask people-2006 with [partner-type = 2][
+   set total1 total1 + count my-links with [partnership-type = 1]
+   set total2 total2 + count my-links with [partnership-type = 2]]
+  file-write total1 / casual-nodes
+  file-write total2 / casual-nodes
+  
+  file-write "For Main Nodes"
+  set total1 0
+  set total2 0
+  ask people-2006 with [partner-type = 1][
+   set total1 total1 + count my-links with [partnership-type = 1 and active? = true]
+   set total2 total2 + count my-links with [partnership-type = 2 and active? = true]]
+  file-write total1 / main-nodes
+  file-write total2 / main-nodes
+  
+  file-write "For Main+Casual Nodes"
+  set total1 0
+  set total2 0
+  ask people-2006 with [partner-type = 3][
+   set total1 total1 + count my-links with [partnership-type = 1 and active? = true]
+   set total2 total2 + count my-links with [partnership-type = 2 and active? = true]]
+  file-write total1 / main-casual-nodes
+  file-write total2 / main-casual-nodes
+  
+  file-write "For Casual Nodes"
+  set total1 0
+  set total2 0
+  ask people-2006 with [partner-type = 2][
+   set total1 total1 + count my-links with [partnership-type = 1 and active? = true]
+   set total2 total2 + count my-links with [partnership-type = 2 and active? = true]]
+  file-write total1 / casual-nodes
+  file-write total2 / casual-nodes
+  
+  file-print ""
+  file-close
+
+end

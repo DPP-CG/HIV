@@ -1,0 +1,5 @@
+FILE DELETED
+
+Microsoft Forefront Protection for Exchange Server removed a file since it was found to match a filter.
+File name: "PATH2-March2015.zip->Jama-1.0.3.jar"
+Filter name: "FILE FILTER= File Types: *.jar"

@@ -1,0 +1,364 @@
+;; Cohort analysis: testing vs. VLS
+;; Generate results related to chort analysis
+to collect-cohort-stats
+
+  if ticks >= tick-start - time-unit
+  [
+    set cohort people with [infected? = true and trans-year = dry-run + calibration-year - start-year + 1]
+    ;print max [acute-stg-length] of cohort
+    ;print max [years-until-diagnosis] of cohort
+  ]
+
+  if ticks = tick-start + 19 * time-unit - 1
+  [
+    set cohort-VLS5 cohort with [onART-length <= 5]
+    set cohort-VLS10 cohort with [onART-length <= 10 and onART-length > 5]
+    set cohort-VLS15 cohort with [onART-length <= 15 and onART-length > 10]
+    set cohort-VLS20 cohort with [onART-length > 15]
+
+    ifelse count cohort-VLS5 > 0
+    [
+      set perc-dead-VLS5 count cohort-VLS5 with [dead = 1] / count cohort-VLS5
+      set avg-VLS-VLS5 mean [onART-length] of cohort-VLS5
+      set num-trans-VLS5 sum [life-time-transmissions] of cohort-VLS5
+      set life-years-VLS5 (sum [sum-life-years] of cohort-VLS5) / count cohort-VLS5
+      set trans-rate-VLS5 100 * num-trans-VLS5 / (sum [sum-life-years] of cohort-VLS5)
+    ]
+    [
+      set perc-dead-VLS5 0
+      set avg-VLS-VLS5 0
+      set num-trans-VLS5 0
+      set life-years-VLS5 0
+      set trans-rate-VLS5 0
+    ]
+
+    ifelse count cohort-VLS10 > 0
+    [
+      set perc-dead-VLS10 count cohort-VLS10 with [dead = 1] / count cohort-VLS10
+      set avg-VLS-VLS10 mean [onART-length] of cohort-VLS10
+      set num-trans-VLS10 sum [life-time-transmissions] of cohort-VLS10
+      set life-years-VLS10 (sum [sum-life-years] of cohort-VLS10) / count cohort-VLS10
+      set trans-rate-VLS10 100 * num-trans-VLS10 / (sum [sum-life-years] of cohort-VLS10)
+    ]
+    [
+      set perc-dead-VLS10 0
+      set avg-VLS-VLS10 0
+      set num-trans-VLS10 0
+      set life-years-VLS10 0
+      set trans-rate-VLS10 0
+    ]
+
+    ifelse count cohort-VLS15 > 0
+    [
+      set perc-dead-VLS15 count cohort-VLS15 with [dead = 1] / count cohort-VLS15
+      set avg-VLS-VLS15 mean [onART-length] of cohort-VLS15
+      set num-trans-VLS15 sum [life-time-transmissions] of cohort-VLS15
+      set life-years-VLS15 (sum [sum-life-years] of cohort-VLS15) / count cohort-VLS15
+      set trans-rate-VLS15 100 * num-trans-VLS15 / (sum [sum-life-years] of cohort-VLS15)
+    ]
+    [
+      set perc-dead-VLS15 0
+      set avg-VLS-VLS15 0
+      set num-trans-VLS15 0
+      set life-years-VLS15 0
+      set trans-rate-VLS15 0
+    ]
+
+    ifelse count cohort-VLS20 > 0
+    [
+      set perc-dead-VLS20 count cohort-VLS20 with [dead = 1] / count cohort-VLS20
+      set avg-VLS-VLS20 mean [onART-length] of cohort-VLS20
+      set num-trans-VLS20 sum [life-time-transmissions] of cohort-VLS20
+      set life-years-VLS20 (sum [sum-life-years] of cohort-VLS20) / count cohort-VLS20
+      set trans-rate-VLS20 100 * num-trans-VLS20 / (sum [sum-life-years] of cohort-VLS20)
+    ]
+    [
+      set perc-dead-VLS20 0
+      set avg-VLS-VLS20 0
+      set num-trans-VLS20 0
+      set life-years-VLS20 0
+      set trans-rate-VLS20 0
+    ]
+
+    ifelse count cohort > 0
+    [
+      set perc-dead-2034 count cohort with [dead = 1] / count cohort
+      set avg-VLS-2034 mean [onART-length] of cohort
+      set num-trans-2034 sum [life-time-transmissions] of cohort
+      set life-years-2034 (sum [sum-life-years] of cohort) / count cohort
+      set trans-rate-2034 100 * num-trans-2034 / (sum [sum-life-years] of cohort)
+    ]
+    [
+      set perc-dead-2034 0
+      set avg-VLS-2034 0
+      set num-trans-2034 0
+      set life-years-2034 0
+      set trans-rate-2034 0
+    ]
+  ]
+
+  let i 0
+  while [i < 20]
+  [
+    if ticks < tick-start + i * time-unit and ticks >= tick-start + (i - 1) * time-unit
+    [
+      set VLS-accumulate replace-item i VLS-accumulate (item i VLS-accumulate + ((count cohort with [stage = 6 and dead = 0]) / time-unit))
+      set all-accumulate replace-item i all-accumulate (item i all-accumulate + ((count cohort with [dead = 0]) / time-unit))
+    ]
+    set i i + 1
+  ]
+
+  if ticks = maxTicks
+  [
+    ifelse count cohort-VLS5 > 0
+    [
+      set QALY-VLS5 (sum [sum-QALYs] of cohort-VLS5) / count cohort-VLS5
+      set total-life-years-VLS5 (sum [sum-life-years] of cohort-VLS5) / count cohort-VLS5
+    ]
+    [
+      set QALY-VLS5 0
+      set total-life-years-VLS5 0
+    ]
+
+    ifelse count cohort-VLS10 > 0
+    [
+      set QALY-VLS10 (sum [sum-QALYs] of cohort-VLS10) / count cohort-VLS10
+      set total-life-years-VLS10 (sum [sum-life-years] of cohort-VLS10) / count cohort-VLS10
+    ]
+    [
+      set QALY-VLS10 0
+      set total-life-years-VLS10 0
+    ]
+
+    ifelse count cohort-VLS15 > 0
+    [
+      set QALY-VLS15 (sum [sum-QALYs] of cohort-VLS15) / count cohort-VLS15
+      set total-life-years-VLS15 (sum [sum-life-years] of cohort-VLS15) / count cohort-VLS15
+    ]
+    [
+      set QALY-VLS15 0
+      set total-life-years-VLS15 0
+
+    ]
+
+    ifelse count cohort-VLS20 > 0
+    [
+      set QALY-VLS20 (sum [sum-QALYs] of cohort-VLS20) / count cohort-VLS20
+      set total-life-years-VLS20 (sum [sum-life-years] of cohort-VLS20) / count cohort-VLS20
+    ]
+    [
+      set QALY-VLS20 0
+      set total-life-years-VLS20 0
+    ]
+
+    ifelse count cohort > 0
+    [
+      set total-QALY (sum [sum-QALYs] of cohort) / count cohort
+      set total-life-years (sum [sum-life-years] of cohort) / count cohort
+    ]
+    [
+      set total-QALY 0
+      set total-life-years 0
+    ]
+  ]
+
+  if ticks = maxTicks
+  [
+    set i 0
+    while [i < 20]
+    [
+      if item i all-accumulate > 0
+      [
+        set avg-VLS replace-item i avg-VLS (item i VLS-accumulate / item i all-accumulate)
+        set avg-trans-rate replace-item i avg-trans-rate (item i num-cohort-trans / item i all-accumulate * 100)
+      ]
+      set i i + 1
+    ]
+    write-cohort-info
+  ]
+
+end
+
+;; Header for cohort analysis
+to write-cohort-header
+  
+  file-open "results-cohort-info.csv"  
+  
+  file-write "Cohort Size"
+  file-write "% dead by 2034"
+  file-write "Avg time until diagnosed"
+  file-write "Avg years VLS by 2034"
+  file-write "Avg # of transmissions 2015-2034"
+  file-write "Transmission-rate 2015-2034"
+  file-write "Avg life years 2015-2085"
+  file-write "Avg QALY 2015-2085"
+  file-write "% dead by 2085"
+  file-write "Avg age at infection"  
+  file-write "Avg life with infection"
+  file-write "Avg age at death"
+  
+  file-write "Cohort Size VLS5"
+  file-write "% dead by 2034"
+  file-write "Avg time until diagnosed"
+  file-write "Avg years VLS by 2034"
+  file-write "Avg # of transmissions 2015-2034"
+  file-write "Transmission-rate 2015-2034"
+  file-write "Avg life years 2015-2085"
+  file-write "Avg QALY 2015-2085"
+  
+  file-write "Cohort Size VLS10"
+  file-write "% dead by 2034"
+  file-write "Avg time until diagnosed"
+  file-write "Avg years VLS by 2034"
+  file-write "Avg # of transmissions 2015-2034"
+  file-write "Transmission-rate 2015-2034"
+  file-write "Avg life years 2015-2085"
+  file-write "Avg QALY 2015-2085"
+  
+  file-write "Cohort Size VLS15"
+  file-write "% dead by 2034"
+  file-write "Avg time until diagnosed"
+  file-write "Avg years VLS by 2034"
+  file-write "Avg # of transmissions 2015-2034"
+  file-write "Transmission-rate 2015-2034"
+  file-write "Avg life years 2015-2085"
+  file-write "Avg QALY 2015-2085"
+  
+  file-write "Cohort Size VLS20"
+  file-write "% dead by 2034"
+  file-write "Avg time until diagnosed"
+  file-write "Avg years VLS by 2034"
+  file-write "Avg # of transmissions 2015-2034"
+  file-write "Transmission-rate 2015-2034"
+  file-write "Avg life years 2015-2085"
+  file-write "Avg QALY 2015-2085"
+
+  repeat 20
+  [file-write "alive"]
+  repeat 20
+  [file-write "VLS"]
+  repeat 20
+  [file-write "avg-VLS"]
+  repeat 20
+  [file-write "trans"]
+  repeat 20
+  [file-write "avg-trans"]
+  
+  file-print ""
+  
+  file-close
+  
+end
+
+;; Write outputs related to chort analysis
+to write-cohort-info
+  
+  file-open "results-cohort-info.csv"
+  
+  file-write count cohort
+  file-write perc-dead-2034
+  ifelse count cohort > 0
+  [file-write mean [years-until-diagnosis] of cohort with [stage >= 3]]
+  [file-write 0]
+  file-write avg-VLS-2034
+  file-write num-trans-2034
+  file-write trans-rate-2034
+  file-write total-life-years
+  file-write total-QALY
+  file-write count cohort with [dead = 1] / count cohort
+  ifelse count cohort > 0
+  [
+    file-write mean [age-at-infection] of cohort
+    file-write mean [life-with-infection] of cohort with [dead = 1] 
+    file-write mean [age-at-death] of cohort with [dead = 1]
+  ]
+  [
+    repeat 3
+    [file-write 0]
+  ]
+  
+  file-write count cohort-VLS5
+  file-write perc-dead-VLS5
+  ifelse count cohort-VLS5 > 0
+  [file-write mean [years-until-diagnosis] of cohort-VLS5 with [stage >= 3]]
+  [file-write 0]
+  file-write avg-VLS-VLS5
+  file-write num-trans-VLS5
+  file-write trans-rate-VLS5
+  file-write total-life-years-VLS5
+  file-write QALY-VLS5
+  
+  file-write count cohort-VLS10
+  file-write perc-dead-VLS10
+  ifelse count cohort-VLS10 > 0
+  [file-write mean [years-until-diagnosis] of cohort-VLS10 with [stage >= 3]]
+  [file-write 0]
+  file-write avg-VLS-VLS10
+  file-write num-trans-VLS10
+  file-write trans-rate-VLS10
+  file-write total-life-years-VLS10
+  file-write QALY-VLS10
+  
+  file-write count cohort-VLS15
+  file-write perc-dead-VLS15
+  ifelse count cohort-VLS15 > 0
+  [file-write mean [years-until-diagnosis] of cohort-VLS15 with [stage >= 3]]
+  [file-write 0]
+  file-write avg-VLS-VLS15
+  file-write num-trans-VLS15
+  file-write trans-rate-VLS15
+  file-write total-life-years-VLS15
+  file-write QALY-VLS15
+  
+  file-write count cohort-VLS20
+  file-write perc-dead-VLS20 
+  ifelse count cohort-VLS20 > 0
+  [file-write mean [years-until-diagnosis] of cohort-VLS20 with [stage >= 3]]
+  [file-write 0]
+  file-write avg-VLS-VLS20
+  file-write num-trans-VLS20
+  file-write trans-rate-VLS20
+  file-write total-life-years-VLS20
+  file-write QALY-VLS20
+  
+  let i 0
+  while [i < 20]
+  [
+    file-write item i all-accumulate
+    set i i + 1
+  ]
+  set i 0
+  while [i < 20]
+  [
+    file-write item i VLS-accumulate
+    set i i + 1
+  ]
+  set i 0
+  while [i < 20]
+  [
+    file-write item i avg-VLS
+    set i i + 1
+  ]
+  set i 0
+  while [i < 20]
+  [
+    file-write item i num-cohort-trans
+    set i i + 1
+  ]
+  set i 0
+  while [i < 20]
+  [
+    file-write item i avg-trans-rate
+    set i i + 1
+  ]
+
+  file-print ""
+  
+  set VLS-accumulate n-values 20 [0]
+  set life-years-accumulate 0
+  set all-accumulate n-values 20 [0]
+  set num-cohort-trans n-values 20 [0]
+
+  file-close
+  
+end

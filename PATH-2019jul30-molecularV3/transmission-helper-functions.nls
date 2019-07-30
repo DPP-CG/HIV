@@ -1,0 +1,212 @@
+to accum-person-years
+
+  ;; person years by stage
+
+  set total-people people with [infected? = true and dead = 0]
+
+  let i 0
+  repeat num-stage
+  [
+    set total-people-stage replace-item i total-people-stage total-people with [stage = i + 1]
+    set count-person-years-by-stage replace-item i count-person-years-by-stage
+        (item i count-person-years-by-stage + count (item i total-people-stage) / time-unit)
+    set i i + 1
+  ]
+
+  ;; person years by age
+  set i 0
+  repeat num-age
+  [
+    set total-people-age replace-item i total-people-age total-people with [age >= item i age-LB and age < item i age-UB]
+    set count-person-years-by-age replace-item i count-person-years-by-age
+        (item i count-person-years-by-age + count (item i total-people-age) / time-unit)
+    set i i + 1
+  ]
+
+  ;; person years by sex/risk group
+  set i 0
+  repeat num-sex
+  [
+    set total-people-sex replace-item i total-people-sex total-people with [sex = i + 1]
+    set count-person-years-by-sex replace-item i count-person-years-by-sex
+        (item i count-person-years-by-sex + count (item i total-people-sex) / time-unit)
+    set i i + 1
+  ]
+
+end
+
+to acute-infection
+
+  ;; individuals in acute phase are recently infected ones
+  ask total-people with [stage = 1] ;; first 3 months of infection
+  [
+    let node who
+    ;; keep track of those infected between 2011 and 2015 if set at between years 19 and 25 (name is misleading)
+    if ticks > sim-dry-run + time-unit * 19 and ticks <= sim-dry-run + time-unit * 24
+    [set infected-2013-2022? true]
+
+    ;; determine months since infection. Used to model acute phase transmissions which varies weekly
+    let start-week 1
+    ifelse age - age-at-infection <= 1 / 12 ;; first month of infections
+    [set start-week 1]
+    [
+      ifelse age - age-at-infection <= 2 / 12 ;; 2nd month of infection
+      [set start-week 5]
+      [set start-week 9] ;; third month of infection
+    ]
+
+    set count-casuals item 2 counter-ptnr
+
+    ;; counters to track num acts during month when in acute phase
+    set casuals-monthly-counter 0
+    set acts-monthly-counter 0
+
+    if item 0 ptnr-infected? = false
+    [set monthly-ptnr1 false]
+
+    if item 1 ptnr-infected? = false
+    [set monthly-ptnr2 false]
+
+    let i 0
+    while [i < 4]
+    [
+      ;; determine transmission in non-acute phase
+      ;; number of transmissions across all weeks are added up in setup-trans-acute
+      setup-trans-acute start-week + i
+      set i i + 1
+    ]
+
+    ;; count number of transmissions stratified by sex, age, and care continuum
+    count-transmission
+  ]
+
+end
+
+to non-acute-infection
+
+  ask total-people with [stage >= 2]
+  [
+    let node who
+    set count-casuals item 2 counter-ptnr
+
+    ;; determine transmission in non-acute phase
+    setup-trans-non-acute
+
+    ;; count number of transmissions stratified by sex, age, and care continuum
+    count-transmission
+  ]
+
+end
+
+to count-transmission
+
+  ;; track number of ptnrs per month for casual sexual
+;  if sex >= 4
+;  [
+;    let inter-val (item 0 ptnr-array + item 1 ptnr-array + (item 2 counter-ptnr - count-casuals))
+;    set ptnrs-per-month replace-item inter-val ptnrs-per-month (item inter-val ptnrs-per-month + 1)
+;  ]
+
+  ;; accumulate transmissions
+  set number-transmissions num-trans-One + num-trans-Two + num-trans-Casual + num-trans-Needle
+  set life-time-transmissions life-time-transmissions + number-transmissions
+
+  let val item (stage - 1) count-trans-by-stage + number-transmissions
+  set count-trans-by-stage replace-item (stage - 1) count-trans-by-stage val
+
+  set val item (sex - 1) count-trans-by-sex + number-transmissions
+  set count-trans-by-sex replace-item (sex - 1) count-trans-by-sex val
+
+  let i 0
+  while [i < num-age]
+  [
+    ifelse age < item i age-UB
+    [
+      set val item i count-trans-by-age + number-transmissions
+      set count-trans-by-age replace-item i count-trans-by-age val
+      set i num-age
+    ]
+    [set i i + 1]
+  ]
+
+  ;; count transmissions by ptnr type: 0= HET main to main(het has only main); 6 = HET main (main or concurrent)
+  ;; 1= MSM bisexula to female; 2 = MSM bisexual to MSM
+  ; count-by-ptnr-type
+
+  ;; calculate number of transmission by transmission type
+  ;table3
+
+  ;; a dummy variable used in redistributing age
+  set dummy 0
+
+end
+
+to count-by-ptnr-type
+
+  let val 0
+
+  ifelse sex <= 2 or sex = 4 or sex = 5
+  [ifelse (item 0 ptnr-array = 1) and (item 0 ptnr-array + item 1 ptnr-array + (item 2 counter-ptnr  - count-casuals)) = 1
+    [set val num-trans-One + item 0 count-trans-by-ptnr-type
+      set count-trans-by-ptnr-type replace-item 0 count-trans-by-ptnr-type val]
+    [set val num-trans-One + num-trans-Two + num-trans-Casual + item 6 count-trans-by-ptnr-type
+      set count-trans-by-ptnr-type replace-item 6 count-trans-by-ptnr-type val]
+  ]
+  [if (sex = 3 or sex = 6) and bi-sexual? = true and mix? = true
+    [set val num-trans-One + num-trans-Two + num-trans-Casual + item 1 count-trans-by-ptnr-type
+      set count-trans-by-ptnr-type replace-item 1 count-trans-by-ptnr-type val]
+
+    if (sex = 3 or sex = 6) and bi-sexual? = true and mix? = false
+    [set val num-trans-One + num-trans-Two + num-trans-Casual + item 2 count-trans-by-ptnr-type
+      set count-trans-by-ptnr-type replace-item 2 count-trans-by-ptnr-type val]
+
+        ;; count transmissions by ptnr type: 3= MSM to  MSM (MSM has only 1 main);
+        ;4= MSM to MSM (MSM has 1 or 2 main may or maynot have casuals); 5= MSM to casual ptnrs ;
+    if (sex = 3 or sex = 6)
+    [if (item 0 ptnr-array = 1) and (item 0 ptnr-array + item 1 ptnr-array + (item 2 counter-ptnr  - count-casuals)) = 1
+      [set val num-trans-One + num-trans-Two + item 3 count-trans-by-ptnr-type
+        set count-trans-by-ptnr-type replace-item 3 count-trans-by-ptnr-type val]
+
+      if (item 0 ptnr-array = 1) or (item 1 ptnr-array = 1 )
+        [set val num-trans-One + num-trans-Two +  item 4 count-trans-by-ptnr-type
+          set count-trans-by-ptnr-type replace-item 4 count-trans-by-ptnr-type val]
+
+      set val num-trans-Casual + item 5 count-trans-by-ptnr-type
+      set count-trans-by-ptnr-type replace-item 5 count-trans-by-ptnr-type val
+    ]
+  ]
+
+end
+
+to table3
+
+  let val 0
+
+  ifelse (age - age-at-infection) <= 0.09
+  [if (sex = 3 or sex = 6) and (item 0 ptnr-array + item 1 ptnr-array + (item 2 counter-ptnr  - count-casuals)) > 1
+    [set val num-trans-One + num-trans-Two + num-trans-Casual + item 0 numTranstable3
+      set numTranstable3 replace-item 0 numTranstable3 val]
+  ]
+  [;2.
+    if (sex = 3 or sex = 6) and item 0 ptnr-array = 1 and (item 0 ptnr-array + item 1 ptnr-array + (item 2 counter-ptnr - count-casuals)) = 1
+    [set val num-trans-One + item 1 numTranstable3
+      set numTranstable3 replace-item 1 numTranstable3 val]
+    ;3.
+    if (sex = 3 or sex = 6) and (item 2 counter-ptnr - count-casuals) = 1 and (item 0 ptnr-array + item 1 ptnr-array + (item 2 counter-ptnr  - count-casuals)) = 1
+    [set val num-trans-Casual + item 2 numTranstable3
+      set numTranstable3 replace-item 2 numTranstable3 val]
+    ;4.
+    if (sex = 3 or sex = 6) and (item 0 ptnr-array + item 1 ptnr-array) = 2 and (item 2 counter-ptnr  - count-casuals) = 0
+    [set val num-trans-One + num-trans-Two + item 3 numTranstable3
+      set numTranstable3 replace-item 3 numTranstable3 val]
+    ;5.
+    if (sex = 3 or sex = 6) and (item 2 counter-ptnr - count-casuals) > 1 and (item 0 ptnr-array + item 1 ptnr-array) = 0
+    [set val num-trans-Casual + item 4 numTranstable3
+      set numTranstable3 replace-item 4 numTranstable3 val]
+    ;6.
+    if (sex = 3 or sex = 6) and (item 2 counter-ptnr  - count-casuals) > 0 and (item 0 ptnr-array + item 1 ptnr-array) > 0
+    [set val num-trans-One + num-trans-Two + num-trans-Casual + item 5 numTranstable3
+      set numTranstable3 replace-item 5 numTranstable3 val]
+  ]
+
+end
